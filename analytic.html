@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analytics Dashboard | Attendance by Grade</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", sans-serif;
+      }
+      body {
+        background: linear-gradient(135deg, #f0f4f8, #e2e8f0);
+        min-height: 100vh;
+        padding: 30px 20px;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .header h1 {
+        font-size: 2rem;
+        background: linear-gradient(135deg, #0f2027, #203a43);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .stat-card {
+        background: white;
+        border-radius: 24px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      }
+      .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c5364;
+      }
+      .stat-label {
+        color: #718096;
+        margin-top: 5px;
+      }
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+      }
+      .chart-card {
+        background: white;
+        border-radius: 28px;
+        padding: 20px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      }
+      .chart-card h3 {
+        margin-bottom: 20px;
+        color: #1a1a2e;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      canvas {
+        max-height: 350px;
+        width: 100%;
+      }
+      .table-container {
+        background: white;
+        border-radius: 28px;
+        padding: 20px;
+        overflow-x: auto;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      th {
+        background: #f0f4f8;
+        font-weight: 600;
+        color: #2c5364;
+      }
+      .grade-badge {
+        background: #2ecc71;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+      }
+      .filter-bar {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .filter-bar select,
+      .filter-bar input {
+        padding: 10px 16px;
+        border-radius: 40px;
+        border: 2px solid #e2e8f0;
+        background: white;
+      }
+      .btn {
+        background: linear-gradient(135deg, #0f2027, #203a43);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 40px;
+        cursor: pointer;
+      }
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #333;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 40px;
+        opacity: 0;
+        transition: 0.3s;
+        z-index: 1000;
+      }
+      @media (max-width: 900px) {
+        .charts-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>
+          <i class="fas fa-chart-line"></i> Attendance Analytics Dashboard
+        </h1>
+        <p>Real-time statistics and charts by grade level</p>
+      </div>
+
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <div class="filter-bar">
+        <select id="dateFilter">
+          <option value="today">Today</option>
+          <option value="week">Last 7 Days</option>
+          <option value="month">Last 30 Days</option>
+          <option value="all">All Time</option>
+        </select>
+        <select id="gradeFilter">
+          <option value="all">All Grades</option>
+          <option value="Grade 1">Grade 1</option>
+          <option value="Grade 2">Grade 2</option>
+          <option value="Grade 3">Grade 3</option>
+          <option value="Grade 4">Grade 4</option>
+          <option value="Grade 5">Grade 5</option>
+          <option value="Grade 6">Grade 6</option>
+          <option value="Grade 7">Grade 7</option>
+          <option value="Grade 8">Grade 8</option>
+          <option value="Grade 9">Grade 9</option>
+          <option value="Grade 10">Grade 10</option>
+          <option value="Grade 11">Grade 11</option>
+          <option value="Grade 12">Grade 12</option>
+        </select>
+        <button id="refreshBtn" class="btn">
+          <i class="fas fa-sync-alt"></i> Refresh Data
+        </button>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>
+            <i class="fas fa-chart-bar"></i> Attendance by Grade (IN Count)
+          </h3>
+          <canvas id="gradeChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3><i class="fas fa-chart-pie"></i> Attendance Distribution</h3>
+          <canvas id="pieChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card" style="margin-bottom: 30px">
+        <h3><i class="fas fa-chart-line"></i> Daily Attendance Trend</h3>
+        <canvas id="trendChart" style="max-height: 300px"></canvas>
+      </div>
+
+      <div class="table-container">
+        <h3><i class="fas fa-table"></i> Detailed Records</h3>
+        <div style="overflow-x: auto">
+          <table id="recordsTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Student Name</th>
+                <th>Student ID</th>
+                <th>Grade</th>
+                <th>IN Time</th>
+                <th>OUT Time</th>
+                <th>Total Hours</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+      const GOOGLE_SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbwCsEiq1G-cGarwREXloibMjQ066rWKJaNuWDgJ4OHsN0dxvBbyc_7gqB43o1ONSwpjjg/exec";
+      let allRecords = [];
+      let students = [];
+      let gradeChart, pieChart, trendChart;
+
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.style.backgroundColor = isError ? "#e74c3c" : "#2ecc71";
+        toast.style.opacity = "1";
+        setTimeout(() => (toast.style.opacity = "0"), 2500);
+      }
+
+      async function fetchData() {
+        showToast("Loading data from Google Sheet...");
+        try {
+          const response = await fetch(GOOGLE_SCRIPT_URL + "?action=getData");
+          const data = await response.json();
+          if (data.status === "success") {
+            allRecords = data.attendance || [];
+            students = data.students || [];
+            showToast(`Loaded ${allRecords.length} records`);
+            refreshDisplay();
+          } else {
+            showToast("Using demo data", true);
+            loadDemoData();
+          }
+        } catch (err) {
+          console.log("Using local data");
+          loadLocalData();
+        }
+      }
+
+      function loadLocalData() {
+        const stored = localStorage.getItem("attendance_records_inout");
+        allRecords = stored ? JSON.parse(stored) : [];
+        const storedStudents = localStorage.getItem("attendance_students");
+        students = storedStudents ? JSON.parse(storedStudents) : [];
+        refreshDisplay();
+      }
+
+      function loadDemoData() {
+        allRecords = [
+          {
+            studentId: "STU-001",
+            studentName: "Emma Watson",
+            grade: "Grade 10",
+            timestamp: new Date().toISOString(),
+            type: "IN",
+          },
+          {
+            studentId: "STU-001",
+            studentName: "Emma Watson",
+            grade: "Grade 10",
+            timestamp: new Date(Date.now() - 6 * 3600000).toISOString(),
+            type: "OUT",
+          },
+          {
+            studentId: "STU-002",
+            studentName: "Liam Chen",
+            grade: "Grade 11",
+            timestamp: new Date().toISOString(),
+            type: "IN",
+          },
+        ];
+        refreshDisplay();
+      }
+
+      function processInOutPairs() {
+        const pairs = {};
+        allRecords.forEach((record) => {
+          const date = new Date(record.timestamp).toDateString();
+          const key = `${record.studentId}_${date}`;
+          if (!pairs[key])
+            pairs[key] = {
+              studentId: record.studentId,
+              studentName: record.studentName,
+              grade: record.grade,
+              date: date,
+              inTime: null,
+              outTime: null,
+            };
+          if (record.type === "IN")
+            pairs[key].inTime = new Date(record.timestamp);
+          if (record.type === "OUT")
+            pairs[key].outTime = new Date(record.timestamp);
+        });
+        return Object.values(pairs).map((pair) => {
+          let hours = null;
+          if (pair.inTime && pair.outTime)
+            hours = ((pair.outTime - pair.inTime) / (1000 * 60 * 60)).toFixed(
+              2,
+            );
+          return { ...pair, totalHours: hours };
+        });
+      }
+
+      function getFilteredData() {
+        const dateFilter = document.getElementById("dateFilter").value;
+        const gradeFilter = document.getElementById("gradeFilter").value;
+        const pairs = processInOutPairs();
+        const now = new Date();
+        let filtered = pairs;
+
+        if (dateFilter === "today")
+          filtered = pairs.filter((p) => p.date === now.toDateString());
+        else if (dateFilter === "week")
+          filtered = pairs.filter((p) => {
+            const d = new Date(p.date);
+            return now - d <= 7 * 24 * 3600000;
+          });
+        else if (dateFilter === "month")
+          filtered = pairs.filter((p) => {
+            const d = new Date(p.date);
+            return now - d <= 30 * 24 * 3600000;
+          });
+
+        if (gradeFilter !== "all")
+          filtered = filtered.filter((p) => p.grade === gradeFilter);
+        return filtered;
+      }
+
+      function calculateGradeStats() {
+        const pairs = processInOutPairs();
+        const gradeStats = {};
+        students.forEach((s) => {
+          if (!gradeStats[s.grade])
+            gradeStats[s.grade] = { totalIN: 0, totalHours: 0, count: 0 };
+        });
+        pairs.forEach((p) => {
+          if (gradeStats[p.grade]) {
+            gradeStats[p.grade].totalIN++;
+            if (p.totalHours)
+              gradeStats[p.grade].totalHours += parseFloat(p.totalHours);
+            gradeStats[p.grade].count++;
+          }
+        });
+        return gradeStats;
+      }
+
+      function updateStatsGrid() {
+        const gradeStats = calculateGradeStats();
+        const statsHtml = Object.entries(gradeStats)
+          .map(
+            ([grade, stats]) => `
+            <div class="stat-card">
+                <div class="stat-number">${stats.totalIN}</div>
+                <div class="stat-label">${grade} - IN Today</div>
+                <div style="font-size:0.75rem;">${stats.totalHours.toFixed(1)} total hours</div>
+            </div>
+        `,
+          )
+          .join("");
+        document.getElementById("statsGrid").innerHTML =
+          statsHtml || '<div class="stat-card">No data yet</div>';
+      }
+
+      function updateCharts() {
+        const filtered = getFilteredData();
+        const gradeStats = {};
+        filtered.forEach((p) => {
+          gradeStats[p.grade] = (gradeStats[p.grade] || 0) + 1;
+        });
+
+        const grades = Object.keys(gradeStats).sort();
+        const counts = grades.map((g) => gradeStats[g]);
+
+        if (gradeChart) gradeChart.destroy();
+        const ctx = document.getElementById("gradeChart").getContext("2d");
+        gradeChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: grades,
+            datasets: [
+              {
+                label: "Number of IN Records",
+                data: counts,
+                backgroundColor: "#2ecc71",
+                borderRadius: 10,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { position: "top" } },
+          },
+        });
+
+        if (pieChart) pieChart.destroy();
+        const pieCtx = document.getElementById("pieChart").getContext("2d");
+        pieChart = new Chart(pieCtx, {
+          type: "pie",
+          data: {
+            labels: grades,
+            datasets: [
+              {
+                data: counts,
+                backgroundColor: [
+                  "#2ecc71",
+                  "#3498db",
+                  "#e74c3c",
+                  "#f39c12",
+                  "#1abc9c",
+                  "#9b59b6",
+                ],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: "right" } },
+          },
+        });
+
+        const dailyStats = {};
+        filtered.forEach((p) => {
+          const date = p.date;
+          dailyStats[date] = (dailyStats[date] || 0) + 1;
+        });
+        const sortedDates = Object.keys(dailyStats).sort();
+        if (trendChart) trendChart.destroy();
+        const trendCtx = document.getElementById("trendChart").getContext("2d");
+        trendChart = new Chart(trendCtx, {
+          type: "line",
+          data: {
+            labels: sortedDates,
+            datasets: [
+              {
+                label: "Daily Attendance",
+                data: sortedDates.map((d) => dailyStats[d]),
+                borderColor: "#2ecc71",
+                backgroundColor: "rgba(46,204,113,0.1)",
+                fill: true,
+                tension: 0.3,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: "top" } },
+          },
+        });
+      }
+
+      function updateTable() {
+        const pairs = processInOutPairs();
+        const filtered = getFilteredData();
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = filtered
+          .map(
+            (p) => `
+            <tr>
+                <td>${p.date}</td>
+                <td>${escapeHtml(p.studentName)}</td>
+                <td>${p.studentId}</td>
+                <td><span class="grade-badge">${p.grade}</span></td>
+                <td>${p.inTime ? p.inTime.toLocaleTimeString() : "—"}</td>
+                <td>${p.outTime ? p.outTime.toLocaleTimeString() : "—"}</td>
+                <td>${p.totalHours ? p.totalHours + " hrs" : "—"}</td>
+            </tr>
+        `,
+          )
+          .join("");
+      }
+
+      function refreshDisplay() {
+        updateStatsGrid();
+        updateCharts();
+        updateTable();
+      }
+      function escapeHtml(str) {
+        if (!str) return "";
+        return str.replace(
+          /[&<>]/g,
+          (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m],
+        );
+      }
+
+      document
+        .getElementById("dateFilter")
+        .addEventListener("change", refreshDisplay);
+      document
+        .getElementById("gradeFilter")
+        .addEventListener("change", refreshDisplay);
+      document
+        .getElementById("refreshBtn")
+        .addEventListener("click", () => fetchData());
+
+      fetchData();
+    </script>
+  </body>
+</html>

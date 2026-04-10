@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=yes"
+    />
+    <title>QR Attendance | Sapporo International School</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", sans-serif;
+      }
+      body {
+        background: linear-gradient(135deg, #ffffff, #ffffff, #ffffff);
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+      .card {
+        background: white;
+        border-radius: 32px;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
+      }
+      .card-header {
+        background: linear-gradient(135deg, #0b7b3e, #0b7b3e);
+        color: white;
+        padding: 25px;
+        text-align: center;
+      }
+      .card-header h1 {
+        font-size: 1.8rem;
+      }
+      .card-body {
+        padding: 25px;
+      }
+      .scanner-container {
+        background: #000;
+        border-radius: 24px;
+        overflow: hidden;
+        margin-bottom: 20px;
+      }
+      #reader {
+        width: 100%;
+        min-height: 350px;
+      }
+      .stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f0f4f8;
+        border-radius: 20px;
+      }
+      .stat-box {
+        text-align: center;
+        flex: 1;
+      }
+      .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a1a2e;
+      }
+      .stat-label {
+        font-size: 0.7rem;
+        color: #718096;
+      }
+      .btn {
+        border: none;
+        padding: 12px 24px;
+        border-radius: 40px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      .btn-success {
+        background: #2ecc71;
+        color: white;
+      }
+      .btn-danger {
+        background: #e74c3c;
+        color: white;
+      }
+      .btn-outline {
+        background: white;
+        border: 2px solid #cbd5e1;
+        color: #1a1a2e;
+      }
+      .attendance-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 15px;
+      }
+      .attendance-item {
+        background: #f0f4f8;
+        border-radius: 16px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-left: 4px solid;
+      }
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #333;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 40px;
+        opacity: 0;
+        transition: 0.3s;
+        z-index: 1000;
+      }
+
+      /* Modal Popup */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1001;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+      }
+      .modal-content {
+        background: white;
+        margin: 15% auto;
+        padding: 0;
+        border-radius: 32px;
+        width: 90%;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateY(-50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      .modal-header {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        color: white;
+        padding: 20px;
+        border-radius: 32px 32px 0 0;
+        text-align: center;
+      }
+      .modal-body {
+        padding: 25px;
+        text-align: center;
+      }
+      .modal-buttons {
+        display: flex;
+        gap: 15px;
+        padding: 0 25px 25px 25px;
+      }
+      .modal-buttons button {
+        flex: 1;
+        padding: 12px;
+        border-radius: 40px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+      }
+      .btn-in {
+        background: #2ecc71;
+        color: white;
+      }
+      .btn-out {
+        background: #e74c3c;
+        color: white;
+      }
+      .btn-cancel {
+        background: #95a5a6;
+        color: white;
+      }
+      .student-info-modal {
+        background: #f0f4f8;
+        padding: 15px;
+        border-radius: 16px;
+        margin: 15px 0;
+      }
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+      .status-in {
+        background: #2ecc71;
+        color: white;
+      }
+      .status-out {
+        background: #e74c3c;
+        color: white;
+      }
+      .config-card {
+        background: #fef5e7;
+        border-left: 4px solid #f39c12;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 16px;
+        font-size: 0.85rem;
+      }
+      .config-card a {
+        color: #f39c12;
+      }
+      .loading {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid white;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        margin-left: 8px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <div class="card-header">
+          <h1><i class="fas fa-camera"></i> SIS Attendance Scanner</h1>
+          <p>Scan QR → Choose IN or OUT → One IN + One OUT per day only</p>
+        </div>
+        <div class="card-body">
+          <div class="config-card" id="configWarning" style="display: none">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Script URL not configured!</strong><br />
+          </div>
+
+          <div class="stats">
+            <div class="stat-box">
+              <div class="stat-number" id="todayInCount">0</div>
+              <div class="stat-label">IN Today</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-number" id="currentlyInCount">0</div>
+              <div class="stat-label">Inside (IN without OUT)</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-number" id="todayOutCount">0</div>
+              <div class="stat-label">OUT Today</div>
+            </div>
+          </div>
+
+          <div class="scanner-container"><div id="reader"></div></div>
+
+          <div
+            id="lastScanStatus"
+            style="
+              text-align: center;
+              padding: 10px;
+              background: #f0f4f8;
+              border-radius: 20px;
+              margin-bottom: 15px;
+            "
+          >
+            <i class="fas fa-info-circle"></i> Ready to scan QR codes
+          </div>
+
+          <h3><i class="fas fa-history"></i> Today's Records</h3>
+          <div id="attendanceList" class="attendance-list"></div>
+          <button
+            id="refreshBtn"
+            class="btn btn-outline"
+            style="margin-top: 10px"
+          >
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Popup for IN/OUT Selection -->
+    <div id="attendanceModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i class="fas fa-qrcode"></i> Record Attendance</h3>
+        </div>
+        <div class="modal-body">
+          <div id="modalStudentInfo" class="student-info-modal">
+            <p><strong id="modalStudentName">Student Name</strong></p>
+            <p id="modalStudentId">ID: ---</p>
+            <p id="modalStudentGrade">Grade: ---</p>
+            <p id="modalCurrentStatus" style="margin-top: 10px"></p>
+          </div>
+          <p style="margin: 10px 0">Select IN or OUT:</p>
+        </div>
+        <div class="modal-buttons">
+          <button id="modalInBtn" class="btn-in">
+            <i class="fas fa-sign-in-alt"></i> IN
+          </button>
+          <button id="modalOutBtn" class="btn-out">
+            <i class="fas fa-sign-out-alt"></i> OUT
+          </button>
+          <button id="modalCancelBtn" class="btn-cancel">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+      // ============ CONFIGURATION ============
+      // IMPORTANT: Replace with your actual Google Apps Script Web App URL
+      // Example: "https://script.google.com/macros/s/ABC123XYZ/exec"
+      const GOOGLE_SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbwCsEiq1G-cGarwREXloibMjQ066rWKJaNuWDgJ4OHsN0dxvBbyc_7gqB43o1ONSwpjjg/exec";
+
+      // ============ GLOBAL VARIABLES ============
+      let html5QrCode = null;
+      let attendanceRecords = [];
+      let students = [];
+      let pendingStudent = null;
+      let isProcessing = false;
+
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.style.backgroundColor = isError ? "#e74c3c" : "#2ecc71";
+        toast.style.opacity = "1";
+        setTimeout(() => (toast.style.opacity = "0"), 3000);
+      }
+
+      function loadLocalData() {
+        const storedStudents = localStorage.getItem("attendance_students");
+        if (storedStudents) students = JSON.parse(storedStudents);
+        const storedAttendance = localStorage.getItem(
+          "attendance_records_inout",
+        );
+        if (storedAttendance) attendanceRecords = JSON.parse(storedAttendance);
+        updateStats();
+        renderAttendanceList();
+      }
+
+      function saveAttendanceLocal() {
+        localStorage.setItem(
+          "attendance_records_inout",
+          JSON.stringify(attendanceRecords),
+        );
+        updateStats();
+        renderAttendanceList();
+      }
+
+      function updateStats() {
+        const today = new Date().toDateString();
+        const todayRecords = attendanceRecords.filter(
+          (r) => new Date(r.timestamp).toDateString() === today,
+        );
+        const todayIn = todayRecords.filter((r) => r.type === "IN").length;
+        const todayOut = todayRecords.filter((r) => r.type === "OUT").length;
+
+        const activeIns = {};
+        todayRecords.forEach((record) => {
+          if (record.type === "IN") activeIns[record.studentId] = true;
+          if (record.type === "OUT") delete activeIns[record.studentId];
+        });
+        const currentlyIn = Object.keys(activeIns).length;
+
+        document.getElementById("todayInCount").innerText = todayIn;
+        document.getElementById("todayOutCount").innerText = todayOut;
+        document.getElementById("currentlyInCount").innerText = currentlyIn;
+      }
+
+      function renderAttendanceList() {
+        const container = document.getElementById("attendanceList");
+        const today = new Date().toDateString();
+        const todayRecords = attendanceRecords
+          .filter((r) => new Date(r.timestamp).toDateString() === today)
+          .reverse();
+
+        if (todayRecords.length === 0) {
+          container.innerHTML =
+            '<div style="text-align:center; color:#999;">No records today</div>';
+          return;
+        }
+
+        container.innerHTML = todayRecords
+          .map(
+            (rec) => `
+            <div class="attendance-item" style="border-left-color: ${rec.type === "IN" ? "#2ecc71" : "#e74c3c"}">
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>${escapeHtml(rec.studentName)}</strong>
+                    <span class="status-badge ${rec.type === "IN" ? "status-in" : "status-out"}">${rec.type}</span>
+                </div>
+                <div style="font-size:0.75rem;">${rec.studentId} | ${rec.grade}</div>
+                <div style="font-size:0.7rem;">${new Date(rec.timestamp).toLocaleTimeString()}</div>
+            </div>
+        `,
+          )
+          .join("");
+      }
+
+      function getTodayStatus(studentId) {
+        const today = new Date().toDateString();
+        const hasIN = attendanceRecords.some(
+          (r) =>
+            r.studentId === studentId &&
+            r.type === "IN" &&
+            new Date(r.timestamp).toDateString() === today,
+        );
+        const hasOUT = attendanceRecords.some(
+          (r) =>
+            r.studentId === studentId &&
+            r.type === "OUT" &&
+            new Date(r.timestamp).toDateString() === today,
+        );
+
+        if (hasIN && hasOUT) return "completed";
+        if (hasIN) return "in_only";
+        return "none";
+      }
+
+      async function saveToGoogleSheet(student, type) {
+        const payload = {
+          action: "attendance",
+          studentId: student.id,
+          studentName: student.name,
+          grade: student.grade,
+          studentEmail: student.email,
+          phone: student.phone,
+          type: type,
+          source: "qr_scan",
+        };
+
+        console.log("Sending payload:", payload);
+
+        try {
+          // Use fetch with no-cors mode and JSONP-style approach
+          const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            cache: "no-cache",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          // With no-cors, we can't read the response body
+          // So we assume success if no network error
+          console.log("Request sent successfully (no-cors mode)");
+          return { status: "success", message: "Request sent" };
+        } catch (err) {
+          console.error("Fetch error:", err);
+
+          // Try alternative method - using Google Script as image (GET fallback)
+          try {
+            const fallbackUrl = `${GOOGLE_SCRIPT_URL}?callback=handleResponse&data=${encodeURIComponent(JSON.stringify(payload))}`;
+            await fetch(fallbackUrl, { mode: "no-cors" });
+            return { status: "success", message: "Fallback request sent" };
+          } catch (fallbackErr) {
+            return { status: "error", message: err.message };
+          }
+        }
+      }
+
+      async function processAttendance(student, type) {
+        if (isProcessing) {
+          showToast("Please wait, processing...", true);
+          return false;
+        }
+
+        isProcessing = true;
+
+        // Disable modal buttons temporarily
+        document.getElementById("modalInBtn").disabled = true;
+        document.getElementById("modalOutBtn").disabled = true;
+
+        try {
+          const result = await saveToGoogleSheet(student, type);
+
+          if (result.status === "error") {
+            showToast(`Failed: ${result.message}`, true);
+            isProcessing = false;
+            return false;
+          }
+
+          // Add to local records for UI update
+          const record = {
+            studentId: student.id,
+            studentName: student.name,
+            grade: student.grade,
+            email: student.email,
+            phone: student.phone,
+            timestamp: new Date().toISOString(),
+            type: type,
+            source: "qr_scan",
+          };
+
+          // Update local records
+          if (type === "IN") {
+            const today = new Date().toDateString();
+            const existingINIndex = attendanceRecords.findIndex(
+              (r) =>
+                r.studentId === student.id &&
+                r.type === "IN" &&
+                new Date(r.timestamp).toDateString() === today,
+            );
+            if (existingINIndex !== -1) {
+              attendanceRecords.splice(existingINIndex, 1);
+            }
+          }
+          attendanceRecords.unshift(record);
+          saveAttendanceLocal();
+
+          const actionText = type === "IN" ? "checked IN" : "checked OUT";
+          showToast(`✅ ${student.name} ${actionText} successfully!`);
+
+          document.getElementById("lastScanStatus").innerHTML = `
+                <i class="fas ${type === "IN" ? "fa-sign-in-alt" : "fa-sign-out-alt"}"></i> 
+                Last: ${student.name} ${type === "IN" ? "IN" : "OUT"} at ${new Date().toLocaleTimeString()}
+            `;
+
+          isProcessing = false;
+          return true;
+        } catch (error) {
+          console.error("Process error:", error);
+          showToast(`Error: ${error.message}`, true);
+          isProcessing = false;
+          return false;
+        } finally {
+          document.getElementById("modalInBtn").disabled = false;
+          document.getElementById("modalOutBtn").disabled = false;
+        }
+      }
+
+      function showModal(student) {
+        const status = getTodayStatus(student.id);
+        let statusText = "";
+
+        if (status === "completed") {
+          statusText =
+            '<span style="color:#e74c3c;">⚠️ Already completed both IN and OUT today!</span>';
+        } else if (status === "in_only") {
+          statusText =
+            '<span style="color:#f39c12;">📤 Already checked IN. You can now check OUT.</span>';
+        } else {
+          statusText =
+            '<span style="color:#2ecc71;">✅ Ready to check IN.</span>';
+        }
+
+        pendingStudent = student;
+        document.getElementById("modalStudentName").innerHTML =
+          `<i class="fas fa-user"></i> ${escapeHtml(student.name)}`;
+        document.getElementById("modalStudentId").innerHTML =
+          `<i class="fas fa-id-card"></i> ID: ${student.id}`;
+        document.getElementById("modalStudentGrade").innerHTML =
+          `<i class="fas fa-graduation-cap"></i> Grade: ${student.grade}`;
+        document.getElementById("modalCurrentStatus").innerHTML = statusText;
+
+        const inBtn = document.getElementById("modalInBtn");
+        const outBtn = document.getElementById("modalOutBtn");
+
+        if (status === "completed") {
+          inBtn.disabled = true;
+          outBtn.disabled = true;
+          inBtn.style.opacity = "0.5";
+          outBtn.style.opacity = "0.5";
+        } else if (status === "in_only") {
+          inBtn.disabled = true;
+          outBtn.disabled = false;
+          inBtn.style.opacity = "0.5";
+          outBtn.style.opacity = "1";
+        } else {
+          inBtn.disabled = false;
+          outBtn.disabled = true;
+          inBtn.style.opacity = "1";
+          outBtn.style.opacity = "0.5";
+        }
+
+        document.getElementById("attendanceModal").style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("attendanceModal").style.display = "none";
+        pendingStudent = null;
+      }
+
+      function handleScannedQR(decodedText) {
+        try {
+          const data = JSON.parse(decodedText);
+          if (data.type === "attendance" && data.studentId) {
+            const student = students.find((s) => s.id === data.studentId);
+            if (student) showModal(student);
+            else showToast(`Student ID ${data.studentId} not found!`, true);
+          } else {
+            showToast("Invalid QR code", true);
+          }
+        } catch (e) {
+          if (decodedText.startsWith("STU-")) {
+            const student = students.find((s) => s.id === decodedText);
+            if (student) showModal(student);
+            else showToast("Student not found", true);
+          } else {
+            showToast("QR not recognized", true);
+          }
+        }
+      }
+
+      async function initScanner() {
+        if (html5QrCode) {
+          try {
+            await html5QrCode.stop();
+          } catch (e) {}
+        }
+
+        const scannerElement = document.getElementById("reader");
+        if (!scannerElement) return;
+
+        html5QrCode = new Html5Qrcode("reader");
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 280, height: 280 } },
+            handleScannedQR,
+            (error) => {
+              // Silent error for continuous scanning
+              // console.debug(error);
+            },
+          );
+          showToast("Scanner ready - Scan QR code");
+        } catch (err) {
+          console.error("Camera error:", err);
+          scannerElement.innerHTML = `<div style="padding:20px; text-align:center; color:white; background:#c53030; border-radius:20px;">
+                <i class="fas fa-exclamation-triangle"></i> Camera error: ${err.message}<br>
+                <small>Make sure you're using HTTPS and have granted camera permission.</small>
+            </div>`;
+          showToast("Camera access failed. Please check permissions.", true);
+        }
+      }
+
+      function refresh() {
+        renderAttendanceList();
+        updateStats();
+        showToast("Refreshed");
+      }
+
+      function escapeHtml(str) {
+        if (!str) return "";
+        return str.replace(
+          /[&<>]/g,
+          (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m],
+        );
+      }
+
+      // Check if URL is configured
+      function checkConfig() {
+        if (
+          GOOGLE_SCRIPT_URL ===
+          "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+        ) {
+          document.getElementById("configWarning").style.display = "block";
+          showToast(
+            "⚠️ Please configure your Google Script URL in the code",
+            true,
+          );
+          return false;
+        }
+        return true;
+      }
+
+      // Event listeners
+      document
+        .getElementById("modalInBtn")
+        .addEventListener("click", async () => {
+          if (pendingStudent && !isProcessing) {
+            await processAttendance(pendingStudent, "IN");
+            closeModal();
+          }
+        });
+      document
+        .getElementById("modalOutBtn")
+        .addEventListener("click", async () => {
+          if (pendingStudent && !isProcessing) {
+            await processAttendance(pendingStudent, "OUT");
+            closeModal();
+          }
+        });
+      document
+        .getElementById("modalCancelBtn")
+        .addEventListener("click", closeModal);
+      window.addEventListener("click", (e) => {
+        if (e.target === document.getElementById("attendanceModal"))
+          closeModal();
+      });
+      document.getElementById("refreshBtn").addEventListener("click", refresh);
+
+      // Initialize
+      checkConfig();
+      loadLocalData();
+      initScanner();
+
+      window.addEventListener("beforeunload", () => {
+        if (html5QrCode && html5QrCode.isScanning)
+          html5QrCode.stop().catch((e) => {});
+      });
+    </script>
+  </body>
+</html>
