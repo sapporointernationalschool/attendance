@@ -24,7 +24,7 @@
         font-family: "Inter", sans-serif;
       }
       body {
-        background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+        background: linear-gradient(135deg, #0b7b3e, #0b7b3e, #0b7b3e);
         min-height: 100vh;
         padding: 20px;
       }
@@ -63,7 +63,6 @@
         min-height: 350px;
       }
 
-      /* Camera Control Bar */
       .camera-controls {
         display: flex;
         gap: 12px;
@@ -95,9 +94,6 @@
       .cam-btn.active {
         background: #2ecc71;
         box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
-      }
-      .cam-btn i {
-        font-size: 1.1rem;
       }
 
       .stats {
@@ -151,6 +147,10 @@
         border: 2px solid #cbd5e1;
         color: #1a1a2e;
       }
+      .btn-warning {
+        background: #f39c12;
+        color: white;
+      }
       .attendance-list {
         max-height: 300px;
         overflow-y: auto;
@@ -176,7 +176,6 @@
         z-index: 1000;
       }
 
-      /* Modal Popup */
       .modal {
         display: none;
         position: fixed;
@@ -272,23 +271,46 @@
         border-radius: 16px;
         font-size: 0.85rem;
       }
+      .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #2c5364;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        margin-right: 10px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
       button:disabled {
         opacity: 0.6;
         cursor: not-allowed;
       }
-
-      @media (max-width: 600px) {
-        .camera-controls {
-          gap: 8px;
-        }
-        .cam-btn {
-          padding: 10px 15px;
-          font-size: 0.8rem;
-          max-width: none;
-        }
-        .stats {
-          gap: 5px;
-        }
+      .sync-status {
+        font-size: 0.8rem;
+        padding: 8px 15px;
+        border-radius: 20px;
+        text-align: center;
+        margin-bottom: 15px;
+      }
+      .sync-status.success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .sync-status.loading {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .sync-status.error {
+        background: #f8d7da;
+        color: #721c24;
       }
     </style>
   </head>
@@ -307,7 +329,15 @@
             section.
           </div>
 
-          <!-- Camera Switch Controls -->
+          <div
+            id="syncStatus"
+            class="sync-status loading"
+            style="margin-bottom: 15px"
+          >
+            <div class="loading-spinner"></div>
+            Loading students from Google Sheets...
+          </div>
+
           <div class="camera-controls">
             <button id="switchBackBtn" class="cam-btn active">
               <i class="fas fa-camera"></i> Back Camera
@@ -317,9 +347,7 @@
             </button>
           </div>
 
-          <div class="scanner-container">
-            <div id="reader"></div>
-          </div>
+          <div class="scanner-container"><div id="reader"></div></div>
 
           <div class="stats">
             <div class="stat-box">
@@ -349,13 +377,41 @@
             <i class="fas fa-info-circle"></i> Ready to scan QR codes
           </div>
 
-          <h3><i class="fas fa-history"></i> Today's Records</h3>
+          <div style="display: flex; gap: 10px">
+            <button id="manualInBtn" class="btn-success" style="flex: 1">
+              <i class="fas fa-sign-in-alt"></i> Manual IN
+            </button>
+            <button id="manualOutBtn" class="btn-danger" style="flex: 1">
+              <i class="fas fa-sign-out-alt"></i> Manual OUT
+            </button>
+          </div>
+
+          <div id="manualPanel" style="display: none; margin-top: 10px">
+            <input
+              type="text"
+              id="manualStudentId"
+              placeholder="Enter Student ID"
+              style="
+                width: 100%;
+                padding: 12px;
+                margin: 10px 0;
+                border-radius: 16px;
+                border: 2px solid #e0e0e0;
+              "
+            />
+            <button id="manualSubmitIn" class="btn-success">Submit IN</button>
+            <button id="manualSubmitOut" class="btn-danger">Submit OUT</button>
+          </div>
+
+          <button id="toggleManualBtn" class="btn-outline">
+            <i class="fas fa-keyboard"></i> Show Manual Entry
+          </button>
+
+          <h3 style="margin-top: 20px">
+            <i class="fas fa-history"></i> Today's Records
+          </h3>
           <div id="attendanceList" class="attendance-list"></div>
-          <button
-            id="refreshBtn"
-            class="btn btn-outline"
-            style="margin-top: 10px"
-          >
+          <button id="refreshBtn" class="btn-outline" style="margin-top: 10px">
             <i class="fas fa-sync-alt"></i> Refresh
           </button>
         </div>
@@ -373,6 +429,7 @@
             <p><strong id="modalStudentName">Student Name</strong></p>
             <p id="modalStudentId">ID: ---</p>
             <p id="modalStudentGrade">Grade: ---</p>
+            <p id="modalStudentEmail">Email: ---</p>
             <p id="modalCurrentStatus" style="margin-top: 10px"></p>
           </div>
           <p style="margin: 10px 0">Select IN or OUT:</p>
@@ -395,13 +452,11 @@
 
     <script>
       // ============ CONFIGURATION ============
-      // REPLACE WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
       const GOOGLE_SCRIPT_URL =
-        "https://script.google.com/macros/s/AKfycbwCsEiq1G-cGarwREXloibMjQ066rWKJaNuWDgJ4OHsN0dxvBbyc_7gqB43o1ONSwpjjg/exec";
+        "https://script.google.com/macros/s/AKfycbwnAjS1C8-9Vx_PjG7AITdacYJyguB6IBZpqDJmawiDhfQWTZUK25IyW-bXXvrd-XD9/exec";
 
       // ============ CAMERA CONFIGURATION ============
-      // For iPad/iOS: "environment" = back camera, "user" = front camera
-      let currentCamera = "environment"; // 'environment' for back, 'user' for front
+      let currentCamera = "environment";
       let html5QrCode = null;
       let isScanning = false;
 
@@ -410,6 +465,7 @@
       let students = [];
       let pendingStudent = null;
       let isProcessing = false;
+      let isLoadingStudents = false;
 
       function showToast(message, isError = false) {
         const toast = document.getElementById("toast");
@@ -419,136 +475,81 @@
         setTimeout(() => (toast.style.opacity = "0"), 3000);
       }
 
-      // Camera switching function
-      async function switchCamera(cameraType) {
-        if (!html5QrCode) {
-          console.log("Scanner not initialized");
-          return;
+      function updateSyncStatus(status, message) {
+        const statusDiv = document.getElementById("syncStatus");
+        if (status === "loading") {
+          statusDiv.className = "sync-status loading";
+          statusDiv.innerHTML =
+            '<div class="loading-spinner"></div> ' + message;
+        } else if (status === "success") {
+          statusDiv.className = "sync-status success";
+          statusDiv.innerHTML =
+            '<i class="fas fa-check-circle"></i> ' + message;
+        } else {
+          statusDiv.className = "sync-status error";
+          statusDiv.innerHTML =
+            '<i class="fas fa-exclamation-circle"></i> ' + message;
         }
+      }
 
-        if (isScanning) {
-          try {
-            await html5QrCode.stop();
-            isScanning = false;
-          } catch (err) {
-            console.log("Error stopping camera:", err);
-          }
-        }
+      // Load students from Google Sheets
+      async function loadStudentsFromSheet() {
+        if (isLoadingStudents) return;
+        isLoadingStudents = true;
 
-        // Clear the reader container
-        const readerElement = document.getElementById("reader");
-        if (readerElement) {
-          readerElement.innerHTML = "";
-        }
+        updateSyncStatus("loading", "Loading students from Google Sheets...");
 
-        // Start with new camera
         try {
-          const config = {
-            fps: 10,
-            qrbox: { width: 280, height: 280 },
-            aspectRatio: 1.0,
-          };
+          const url = `${GOOGLE_SCRIPT_URL}?action=getStudents&t=${Date.now()}`;
+          const response = await fetch(url);
+          const data = await response.json();
 
-          // For iPad, we need to specify exact camera ID or use facingMode
-          const cameraConfig = {
-            facingMode: cameraType === "environment" ? "environment" : "user",
-          };
-
-          await html5QrCode.start(
-            cameraConfig,
-            config,
-            handleScannedQR,
-            (errorMessage) => {
-              // Silent error for continuous scanning
-              // console.debug(errorMessage);
-            },
-          );
-
-          isScanning = true;
-          currentCamera = cameraType;
-
-          // Update button styles
-          const backBtn = document.getElementById("switchBackBtn");
-          const frontBtn = document.getElementById("switchFrontBtn");
-
-          if (cameraType === "environment") {
-            backBtn.classList.add("active");
-            frontBtn.classList.remove("active");
-            showToast("Switched to Back Camera");
+          if (data.status === "success" && data.students) {
+            students = data.students;
+            // Save backup
+            localStorage.setItem(
+              "attendance_students_backup",
+              JSON.stringify(students),
+            );
+            updateSyncStatus("success", `Loaded ${students.length} students`);
+            console.log("Students loaded:", students.length);
+            return true;
           } else {
-            frontBtn.classList.add("active");
-            backBtn.classList.remove("active");
-            showToast("Switched to Front Camera (Selfie mode)");
+            throw new Error(data.message || "Invalid data");
           }
-        } catch (err) {
-          console.error("Failed to start camera:", err);
-          showToast(`Camera error: ${err.message}`, true);
-
-          // Try fallback for iPad
-          if (cameraType === "user") {
-            showToast("Front camera may not be available on this device", true);
+        } catch (error) {
+          console.error("Error loading students:", error);
+          // Try backup
+          const backup = localStorage.getItem("attendance_students_backup");
+          if (backup) {
+            students = JSON.parse(backup);
+            updateSyncStatus(
+              "success",
+              `Using cached data (${students.length} students)`,
+            );
+            showToast(`⚠️ Using cached student data`, true);
+            return true;
+          } else {
+            students = [];
+            updateSyncStatus("error", `Failed to load: ${error.message}`);
+            showToast(`❌ Failed to load students: ${error.message}`, true);
+            return false;
           }
+        } finally {
+          isLoadingStudents = false;
         }
       }
 
-      // Initialize scanner with default back camera
-      async function initScanner() {
-        if (html5QrCode) {
-          try {
-            if (isScanning) await html5QrCode.stop();
-          } catch (e) {
-            console.log("Error stopping existing scanner:", e);
-          }
-        }
-
-        const readerElement = document.getElementById("reader");
-        if (!readerElement) return;
-
-        readerElement.innerHTML = "";
-
-        html5QrCode = new Html5Qrcode("reader");
-
-        try {
-          const config = {
-            fps: 10,
-            qrbox: { width: 280, height: 280 },
-            aspectRatio: 1.0,
-          };
-
-          // Start with back camera by default
-          await html5QrCode.start(
-            { facingMode: "environment" },
-            config,
-            handleScannedQR,
-            (errorMessage) => {
-              // Silent error for continuous scanning
-            },
-          );
-
-          isScanning = true;
-          currentCamera = "environment";
-          showToast("Scanner ready - Back Camera active");
-
-          // Update button states
-          document.getElementById("switchBackBtn").classList.add("active");
-          document.getElementById("switchFrontBtn").classList.remove("active");
-        } catch (err) {
-          console.error("Camera initialization error:", err);
-          readerElement.innerHTML = `<div style="padding:20px; text-align:center; color:white; background:#c53030; border-radius:20px;">
-                <i class="fas fa-exclamation-triangle"></i> Camera error: ${err.message}<br>
-                <small>Make sure you've granted camera permission.<br>On iPad, check Settings > Safari > Camera.</small>
-            </div>`;
-          showToast("Camera access failed. Please check permissions.", true);
-        }
-      }
-
-      function loadLocalData() {
-        const storedStudents = localStorage.getItem("attendance_students");
-        if (storedStudents) students = JSON.parse(storedStudents);
+      // Load attendance records from localStorage
+      function loadAttendanceLocal() {
         const storedAttendance = localStorage.getItem(
           "attendance_records_inout",
         );
-        if (storedAttendance) attendanceRecords = JSON.parse(storedAttendance);
+        if (storedAttendance) {
+          attendanceRecords = JSON.parse(storedAttendance);
+        } else {
+          attendanceRecords = [];
+        }
         updateStats();
         renderAttendanceList();
       }
@@ -631,36 +632,16 @@
         return "none";
       }
 
-      async function saveToGoogleSheet(student, type) {
-        const payload = {
-          action: "attendance",
-          studentId: student.id,
-          studentName: student.name,
-          grade: student.grade,
-          studentEmail: student.email,
-          phone: student.phone,
-          type: type,
-          source: "qr_scan",
-        };
-
-        console.log("Sending payload:", payload);
+      async function sendAttendanceToSheet(student, type) {
+        const url = `${GOOGLE_SCRIPT_URL}?action=attendance&studentId=${encodeURIComponent(student.id)}&studentName=${encodeURIComponent(student.name)}&grade=${encodeURIComponent(student.grade)}&studentEmail=${encodeURIComponent(student.email)}&phone=${encodeURIComponent(student.phone)}&type=${type}&source=qr_scan&t=${Date.now()}`;
 
         try {
-          const response = await fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors",
-            cache: "no-cache",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          });
-
-          console.log("Request sent successfully (no-cors mode)");
-          return { status: "success", message: "Request sent" };
-        } catch (err) {
-          console.error("Fetch error:", err);
-          return { status: "error", message: err.message };
+          const response = await fetch(url);
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error("Error:", error);
+          throw error;
         }
       }
 
@@ -672,18 +653,20 @@
 
         isProcessing = true;
 
+        // Disable modal buttons
         document.getElementById("modalInBtn").disabled = true;
         document.getElementById("modalOutBtn").disabled = true;
 
         try {
-          const result = await saveToGoogleSheet(student, type);
+          const result = await sendAttendanceToSheet(student, type);
 
           if (result.status === "error") {
-            showToast(`Failed: ${result.message}`, true);
+            showToast(result.message, true);
             isProcessing = false;
             return false;
           }
 
+          // Add to local records
           const record = {
             studentId: student.id,
             studentName: student.name,
@@ -695,6 +678,7 @@
             source: "qr_scan",
           };
 
+          // Update local records
           if (type === "IN") {
             const today = new Date().toDateString();
             const existingINIndex = attendanceRecords.findIndex(
@@ -753,6 +737,8 @@
           `<i class="fas fa-id-card"></i> ID: ${student.id}`;
         document.getElementById("modalStudentGrade").innerHTML =
           `<i class="fas fa-graduation-cap"></i> Grade: ${student.grade}`;
+        document.getElementById("modalStudentEmail").innerHTML =
+          `<i class="fas fa-envelope"></i> ${student.email}`;
         document.getElementById("modalCurrentStatus").innerHTML = statusText;
 
         const inBtn = document.getElementById("modalInBtn");
@@ -788,20 +774,162 @@
           const data = JSON.parse(decodedText);
           if (data.type === "attendance" && data.studentId) {
             const student = students.find((s) => s.id === data.studentId);
-            if (student) showModal(student);
-            else showToast(`Student ID ${data.studentId} not found!`, true);
+            if (student) {
+              showModal(student);
+            } else {
+              showToast(
+                `Student ID ${data.studentId} not found in database!`,
+                true,
+              );
+              console.log(
+                "Available students:",
+                students.map((s) => s.id),
+              );
+            }
           } else {
             showToast("Invalid QR code", true);
           }
         } catch (e) {
-          if (decodedText.startsWith("STU-")) {
-            const student = students.find((s) => s.id === decodedText);
-            if (student) showModal(student);
-            else showToast("Student not found", true);
+          // Try as plain text student ID
+          const student = students.find((s) => s.id === decodedText);
+          if (student) {
+            showModal(student);
+          } else if (decodedText.startsWith("STU-")) {
+            showToast(
+              `Student ID ${decodedText} not found! Please register first.`,
+              true,
+            );
           } else {
             showToast("QR not recognized", true);
           }
         }
+      }
+
+      async function switchCamera(cameraType) {
+        if (!html5QrCode) return;
+
+        if (isScanning) {
+          try {
+            await html5QrCode.stop();
+            isScanning = false;
+          } catch (e) {}
+        }
+
+        const readerElement = document.getElementById("reader");
+        if (readerElement) readerElement.innerHTML = "";
+
+        try {
+          const config = {
+            fps: 10,
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0,
+          };
+          await html5QrCode.start(
+            {
+              facingMode: cameraType === "environment" ? "environment" : "user",
+            },
+            config,
+            handleScannedQR,
+            (errorMessage) => {},
+          );
+          isScanning = true;
+          currentCamera = cameraType;
+
+          const backBtn = document.getElementById("switchBackBtn");
+          const frontBtn = document.getElementById("switchFrontBtn");
+          if (cameraType === "environment") {
+            backBtn.classList.add("active");
+            frontBtn.classList.remove("active");
+          } else {
+            frontBtn.classList.add("active");
+            backBtn.classList.remove("active");
+          }
+          showToast(
+            `Switched to ${cameraType === "environment" ? "Back" : "Front"} Camera`,
+          );
+        } catch (err) {
+          showToast(`Camera error: ${err.message}`, true);
+        }
+      }
+
+      async function initScanner() {
+        if (html5QrCode) {
+          try {
+            if (isScanning) await html5QrCode.stop();
+          } catch (e) {}
+        }
+
+        const readerElement = document.getElementById("reader");
+        if (!readerElement) return;
+        readerElement.innerHTML = "";
+
+        html5QrCode = new Html5Qrcode("reader");
+
+        try {
+          const config = {
+            fps: 10,
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0,
+          };
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            handleScannedQR,
+            (errorMessage) => {},
+          );
+          isScanning = true;
+          showToast("Scanner ready");
+        } catch (err) {
+          readerElement.innerHTML = `<div style="padding:20px; text-align:center; color:white; background:#c53030; border-radius:20px;">
+                <i class="fas fa-exclamation-triangle"></i> Camera error: ${err.message}
+            </div>`;
+          showToast("Camera access failed", true);
+        }
+      }
+
+      // Manual attendance
+      let manualVisible = false;
+      function toggleManual() {
+        const panel = document.getElementById("manualPanel");
+        manualVisible = !manualVisible;
+        panel.style.display = manualVisible ? "block" : "none";
+        document.getElementById("toggleManualBtn").innerHTML = manualVisible
+          ? '<i class="fas fa-camera"></i> Hide Manual Entry'
+          : '<i class="fas fa-keyboard"></i> Show Manual Entry';
+      }
+
+      async function manualIn() {
+        const studentId = document
+          .getElementById("manualStudentId")
+          .value.trim();
+        if (!studentId) {
+          showToast("Enter Student ID", true);
+          return;
+        }
+        const student = students.find((s) => s.id === studentId);
+        if (!student) {
+          showToast(`Student ID ${studentId} not found!`, true);
+          return;
+        }
+        await processAttendance(student, "IN");
+        document.getElementById("manualStudentId").value = "";
+      }
+
+      async function manualOut() {
+        const studentId = document
+          .getElementById("manualStudentId")
+          .value.trim();
+        if (!studentId) {
+          showToast("Enter Student ID", true);
+          return;
+        }
+        const student = students.find((s) => s.id === studentId);
+        if (!student) {
+          showToast(`Student ID ${studentId} not found!`, true);
+          return;
+        }
+        await processAttendance(student, "OUT");
+        document.getElementById("manualStudentId").value = "";
       }
 
       function refresh() {
@@ -824,30 +952,19 @@
           "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
         ) {
           document.getElementById("configWarning").style.display = "block";
-          showToast(
-            "⚠️ Please configure your Google Script URL in the code",
-            true,
-          );
+          showToast("⚠️ Please configure your Google Script URL", true);
           return false;
         }
         return true;
       }
 
-      // Event listeners for camera switching
-      document.getElementById("switchBackBtn").addEventListener("click", () => {
-        if (currentCamera !== "environment") {
-          switchCamera("environment");
-        }
-      });
-
+      // Event listeners
+      document
+        .getElementById("switchBackBtn")
+        .addEventListener("click", () => switchCamera("environment"));
       document
         .getElementById("switchFrontBtn")
-        .addEventListener("click", () => {
-          if (currentCamera !== "user") {
-            switchCamera("user");
-          }
-        });
-
+        .addEventListener("click", () => switchCamera("user"));
       document
         .getElementById("modalInBtn")
         .addEventListener("click", async () => {
@@ -856,7 +973,6 @@
             closeModal();
           }
         });
-
       document
         .getElementById("modalOutBtn")
         .addEventListener("click", async () => {
@@ -865,7 +981,6 @@
             closeModal();
           }
         });
-
       document
         .getElementById("modalCancelBtn")
         .addEventListener("click", closeModal);
@@ -874,16 +989,32 @@
           closeModal();
       });
       document.getElementById("refreshBtn").addEventListener("click", refresh);
+      document
+        .getElementById("manualInBtn")
+        .addEventListener("click", manualIn);
+      document
+        .getElementById("manualOutBtn")
+        .addEventListener("click", manualOut);
+      document
+        .getElementById("toggleManualBtn")
+        .addEventListener("click", toggleManual);
+      document
+        .getElementById("manualSubmitIn")
+        .addEventListener("click", manualIn);
+      document
+        .getElementById("manualSubmitOut")
+        .addEventListener("click", manualOut);
 
       // Initialize
-      checkConfig();
-      loadLocalData();
-      initScanner();
+      if (checkConfig()) {
+        loadStudentsFromSheet().then(() => {
+          loadAttendanceLocal();
+          initScanner();
+        });
+      }
 
       window.addEventListener("beforeunload", () => {
-        if (html5QrCode && isScanning) {
-          html5QrCode.stop().catch((e) => {});
-        }
+        if (html5QrCode && isScanning) html5QrCode.stop().catch((e) => {});
       });
     </script>
   </body>
