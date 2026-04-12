@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=yes"
+      content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover"
     />
     <title>QR Attendance | Sapporo International School</title>
     <link
@@ -24,7 +24,7 @@
         font-family: "Inter", sans-serif;
       }
       body {
-        background: linear-gradient(135deg, #ffffff, #ffffff, #ffffff);
+        background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
         min-height: 100vh;
         padding: 20px;
       }
@@ -40,7 +40,7 @@
         margin-bottom: 20px;
       }
       .card-header {
-        background: linear-gradient(135deg, #0b7b3e, #0b7b3e);
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
         color: white;
         padding: 25px;
         text-align: center;
@@ -55,12 +55,51 @@
         background: #000;
         border-radius: 24px;
         overflow: hidden;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
+        position: relative;
       }
       #reader {
         width: 100%;
         min-height: 350px;
       }
+
+      /* Camera Control Bar */
+      .camera-controls {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .cam-btn {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 40px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        flex: 1;
+        justify-content: center;
+        max-width: 180px;
+      }
+      .cam-btn:hover {
+        transform: translateY(-2px);
+        opacity: 0.9;
+      }
+      .cam-btn.active {
+        background: #2ecc71;
+        box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+      }
+      .cam-btn i {
+        font-size: 1.1rem;
+      }
+
       .stats {
         display: flex;
         justify-content: space-between;
@@ -68,10 +107,13 @@
         padding: 15px;
         background: #f0f4f8;
         border-radius: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
       }
       .stat-box {
         text-align: center;
         flex: 1;
+        min-width: 80px;
       }
       .stat-number {
         font-size: 1.5rem;
@@ -230,30 +272,23 @@
         border-radius: 16px;
         font-size: 0.85rem;
       }
-      .config-card a {
-        color: #f39c12;
-      }
-      .loading {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border: 2px solid white;
-        border-top: 2px solid transparent;
-        border-radius: 50%;
-        animation: spin 0.6s linear infinite;
-        margin-left: 8px;
-      }
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
       button:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+      }
+
+      @media (max-width: 600px) {
+        .camera-controls {
+          gap: 8px;
+        }
+        .cam-btn {
+          padding: 10px 15px;
+          font-size: 0.8rem;
+          max-width: none;
+        }
+        .stats {
+          gap: 5px;
+        }
       }
     </style>
   </head>
@@ -261,13 +296,29 @@
     <div class="container">
       <div class="card">
         <div class="card-header">
-          <h1><i class="fas fa-camera"></i> SIS Attendance Scanner</h1>
+          <h1><i class="fas fa-camera"></i> Attendance Scanner</h1>
           <p>Scan QR → Choose IN or OUT → One IN + One OUT per day only</p>
         </div>
         <div class="card-body">
           <div class="config-card" id="configWarning" style="display: none">
             <i class="fas fa-exclamation-triangle"></i>
-            <strong>Script URL not configured!</strong><br />
+            <strong>Google Script URL not configured!</strong><br />
+            Please update <code>GOOGLE_SCRIPT_URL</code> in the JavaScript
+            section.
+          </div>
+
+          <!-- Camera Switch Controls -->
+          <div class="camera-controls">
+            <button id="switchBackBtn" class="cam-btn active">
+              <i class="fas fa-camera"></i> Back Camera
+            </button>
+            <button id="switchFrontBtn" class="cam-btn">
+              <i class="fas fa-camera-retro"></i> Front Camera
+            </button>
+          </div>
+
+          <div class="scanner-container">
+            <div id="reader"></div>
           </div>
 
           <div class="stats">
@@ -284,8 +335,6 @@
               <div class="stat-label">OUT Today</div>
             </div>
           </div>
-
-          <div class="scanner-container"><div id="reader"></div></div>
 
           <div
             id="lastScanStatus"
@@ -346,13 +395,17 @@
 
     <script>
       // ============ CONFIGURATION ============
-      // IMPORTANT: Replace with your actual Google Apps Script Web App URL
-      // Example: "https://script.google.com/macros/s/ABC123XYZ/exec"
+      // REPLACE WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
       const GOOGLE_SCRIPT_URL =
         "https://script.google.com/macros/s/AKfycbwCsEiq1G-cGarwREXloibMjQ066rWKJaNuWDgJ4OHsN0dxvBbyc_7gqB43o1ONSwpjjg/exec";
 
-      // ============ GLOBAL VARIABLES ============
+      // ============ CAMERA CONFIGURATION ============
+      // For iPad/iOS: "environment" = back camera, "user" = front camera
+      let currentCamera = "environment"; // 'environment' for back, 'user' for front
       let html5QrCode = null;
+      let isScanning = false;
+
+      // ============ GLOBAL VARIABLES ============
       let attendanceRecords = [];
       let students = [];
       let pendingStudent = null;
@@ -364,6 +417,129 @@
         toast.style.backgroundColor = isError ? "#e74c3c" : "#2ecc71";
         toast.style.opacity = "1";
         setTimeout(() => (toast.style.opacity = "0"), 3000);
+      }
+
+      // Camera switching function
+      async function switchCamera(cameraType) {
+        if (!html5QrCode) {
+          console.log("Scanner not initialized");
+          return;
+        }
+
+        if (isScanning) {
+          try {
+            await html5QrCode.stop();
+            isScanning = false;
+          } catch (err) {
+            console.log("Error stopping camera:", err);
+          }
+        }
+
+        // Clear the reader container
+        const readerElement = document.getElementById("reader");
+        if (readerElement) {
+          readerElement.innerHTML = "";
+        }
+
+        // Start with new camera
+        try {
+          const config = {
+            fps: 10,
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0,
+          };
+
+          // For iPad, we need to specify exact camera ID or use facingMode
+          const cameraConfig = {
+            facingMode: cameraType === "environment" ? "environment" : "user",
+          };
+
+          await html5QrCode.start(
+            cameraConfig,
+            config,
+            handleScannedQR,
+            (errorMessage) => {
+              // Silent error for continuous scanning
+              // console.debug(errorMessage);
+            },
+          );
+
+          isScanning = true;
+          currentCamera = cameraType;
+
+          // Update button styles
+          const backBtn = document.getElementById("switchBackBtn");
+          const frontBtn = document.getElementById("switchFrontBtn");
+
+          if (cameraType === "environment") {
+            backBtn.classList.add("active");
+            frontBtn.classList.remove("active");
+            showToast("Switched to Back Camera");
+          } else {
+            frontBtn.classList.add("active");
+            backBtn.classList.remove("active");
+            showToast("Switched to Front Camera (Selfie mode)");
+          }
+        } catch (err) {
+          console.error("Failed to start camera:", err);
+          showToast(`Camera error: ${err.message}`, true);
+
+          // Try fallback for iPad
+          if (cameraType === "user") {
+            showToast("Front camera may not be available on this device", true);
+          }
+        }
+      }
+
+      // Initialize scanner with default back camera
+      async function initScanner() {
+        if (html5QrCode) {
+          try {
+            if (isScanning) await html5QrCode.stop();
+          } catch (e) {
+            console.log("Error stopping existing scanner:", e);
+          }
+        }
+
+        const readerElement = document.getElementById("reader");
+        if (!readerElement) return;
+
+        readerElement.innerHTML = "";
+
+        html5QrCode = new Html5Qrcode("reader");
+
+        try {
+          const config = {
+            fps: 10,
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0,
+          };
+
+          // Start with back camera by default
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            handleScannedQR,
+            (errorMessage) => {
+              // Silent error for continuous scanning
+            },
+          );
+
+          isScanning = true;
+          currentCamera = "environment";
+          showToast("Scanner ready - Back Camera active");
+
+          // Update button states
+          document.getElementById("switchBackBtn").classList.add("active");
+          document.getElementById("switchFrontBtn").classList.remove("active");
+        } catch (err) {
+          console.error("Camera initialization error:", err);
+          readerElement.innerHTML = `<div style="padding:20px; text-align:center; color:white; background:#c53030; border-radius:20px;">
+                <i class="fas fa-exclamation-triangle"></i> Camera error: ${err.message}<br>
+                <small>Make sure you've granted camera permission.<br>On iPad, check Settings > Safari > Camera.</small>
+            </div>`;
+          showToast("Camera access failed. Please check permissions.", true);
+        }
       }
 
       function loadLocalData() {
@@ -470,7 +646,6 @@
         console.log("Sending payload:", payload);
 
         try {
-          // Use fetch with no-cors mode and JSONP-style approach
           const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             mode: "no-cors",
@@ -481,21 +656,11 @@
             body: JSON.stringify(payload),
           });
 
-          // With no-cors, we can't read the response body
-          // So we assume success if no network error
           console.log("Request sent successfully (no-cors mode)");
           return { status: "success", message: "Request sent" };
         } catch (err) {
           console.error("Fetch error:", err);
-
-          // Try alternative method - using Google Script as image (GET fallback)
-          try {
-            const fallbackUrl = `${GOOGLE_SCRIPT_URL}?callback=handleResponse&data=${encodeURIComponent(JSON.stringify(payload))}`;
-            await fetch(fallbackUrl, { mode: "no-cors" });
-            return { status: "success", message: "Fallback request sent" };
-          } catch (fallbackErr) {
-            return { status: "error", message: err.message };
-          }
+          return { status: "error", message: err.message };
         }
       }
 
@@ -507,7 +672,6 @@
 
         isProcessing = true;
 
-        // Disable modal buttons temporarily
         document.getElementById("modalInBtn").disabled = true;
         document.getElementById("modalOutBtn").disabled = true;
 
@@ -520,7 +684,6 @@
             return false;
           }
 
-          // Add to local records for UI update
           const record = {
             studentId: student.id,
             studentName: student.name,
@@ -532,7 +695,6 @@
             source: "qr_scan",
           };
 
-          // Update local records
           if (type === "IN") {
             const today = new Date().toDateString();
             const existingINIndex = attendanceRecords.findIndex(
@@ -642,38 +804,6 @@
         }
       }
 
-      async function initScanner() {
-        if (html5QrCode) {
-          try {
-            await html5QrCode.stop();
-          } catch (e) {}
-        }
-
-        const scannerElement = document.getElementById("reader");
-        if (!scannerElement) return;
-
-        html5QrCode = new Html5Qrcode("reader");
-        try {
-          await html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 280, height: 280 } },
-            handleScannedQR,
-            (error) => {
-              // Silent error for continuous scanning
-              // console.debug(error);
-            },
-          );
-          showToast("Scanner ready - Scan QR code");
-        } catch (err) {
-          console.error("Camera error:", err);
-          scannerElement.innerHTML = `<div style="padding:20px; text-align:center; color:white; background:#c53030; border-radius:20px;">
-                <i class="fas fa-exclamation-triangle"></i> Camera error: ${err.message}<br>
-                <small>Make sure you're using HTTPS and have granted camera permission.</small>
-            </div>`;
-          showToast("Camera access failed. Please check permissions.", true);
-        }
-      }
-
       function refresh() {
         renderAttendanceList();
         updateStats();
@@ -688,7 +818,6 @@
         );
       }
 
-      // Check if URL is configured
       function checkConfig() {
         if (
           GOOGLE_SCRIPT_URL ===
@@ -704,7 +833,21 @@
         return true;
       }
 
-      // Event listeners
+      // Event listeners for camera switching
+      document.getElementById("switchBackBtn").addEventListener("click", () => {
+        if (currentCamera !== "environment") {
+          switchCamera("environment");
+        }
+      });
+
+      document
+        .getElementById("switchFrontBtn")
+        .addEventListener("click", () => {
+          if (currentCamera !== "user") {
+            switchCamera("user");
+          }
+        });
+
       document
         .getElementById("modalInBtn")
         .addEventListener("click", async () => {
@@ -713,6 +856,7 @@
             closeModal();
           }
         });
+
       document
         .getElementById("modalOutBtn")
         .addEventListener("click", async () => {
@@ -721,6 +865,7 @@
             closeModal();
           }
         });
+
       document
         .getElementById("modalCancelBtn")
         .addEventListener("click", closeModal);
@@ -736,8 +881,9 @@
       initScanner();
 
       window.addEventListener("beforeunload", () => {
-        if (html5QrCode && html5QrCode.isScanning)
+        if (html5QrCode && isScanning) {
           html5QrCode.stop().catch((e) => {});
+        }
       });
     </script>
   </body>
