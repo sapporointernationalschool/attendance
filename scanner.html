@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover"
     />
-    <title>QR Attendance | Sapporo Internatioanl School</title>
+    <title>QR Attendance | Sapporo International School</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap"
       rel="stylesheet"
@@ -57,10 +57,20 @@
         overflow: hidden;
         margin-bottom: 15px;
         position: relative;
+        min-height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       #reader {
         width: 100%;
         min-height: 350px;
+        position: relative;
+      }
+      #reader video {
+        border-radius: 24px;
+        width: 100%;
+        height: auto;
       }
 
       .camera-controls {
@@ -94,6 +104,10 @@
       .cam-btn.active {
         background: #2ecc71;
         box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+      }
+      .cam-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
 
       .stats {
@@ -155,6 +169,10 @@
       }
       .btn-warning {
         background: #f39c12;
+        color: white;
+      }
+      .btn-primary {
+        background: #3498db;
         color: white;
       }
       .attendance-list {
@@ -372,6 +390,37 @@
         color: #718096;
         margin-top: 5px;
       }
+      .camera-error {
+        background: #c53030;
+        color: white;
+        padding: 20px;
+        border-radius: 20px;
+        text-align: center;
+        width: 100%;
+      }
+      .camera-error button {
+        background: white;
+        color: #c53030;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 40px;
+        margin-top: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .camera-error button:hover {
+        transform: scale(1.05);
+      }
+      .camera-loading {
+        color: white;
+        text-align: center;
+        padding: 20px;
+      }
+      .camera-placeholder {
+        color: #718096;
+        text-align: center;
+        padding: 20px;
+      }
     </style>
   </head>
   <body>
@@ -380,7 +429,9 @@
         <div class="card-header">
           <img src="img/LogoSIS-white.png" width="10%" height="10%" />
           <h1><i class="fas fa-camera"></i> Attendance Scanner</h1>
-          <p>Scan QR → Choose IN or OUT</p>
+          <p>
+            Scan QR → Choose IN or OUT → Late exceptions for special students
+          </p>
         </div>
         <div class="card-body">
           <div class="config-card" id="configWarning" style="display: none">
@@ -406,9 +457,27 @@
             <button id="switchFrontBtn" class="cam-btn">
               <i class="fas fa-camera-retro"></i> Front Camera
             </button>
+            <button
+              id="restartCameraBtn"
+              class="cam-btn"
+              style="background: #3498db"
+            >
+              <i class="fas fa-sync-alt"></i> Restart
+            </button>
           </div>
 
-          <div class="scanner-container"><div id="reader"></div></div>
+          <div class="scanner-container" id="scannerContainer">
+            <div id="reader">
+              <div class="camera-placeholder">
+                <i
+                  class="fas fa-camera"
+                  style="font-size: 3rem; display: block; margin-bottom: 10px"
+                ></i>
+                <p>Initializing camera...</p>
+                <div class="loading-spinner" style="margin: 10px auto"></div>
+              </div>
+            </div>
+          </div>
 
           <div class="stats">
             <div class="stat-box">
@@ -419,7 +488,6 @@
               <div class="stat-number late" id="lateCount">0</div>
               <div class="stat-label">🕒 Late</div>
             </div>
-
             <div class="stat-box">
               <div class="stat-number" id="todayOutCount">0</div>
               <div class="stat-label">OUT Today</div>
@@ -518,26 +586,21 @@
         "https://script.google.com/macros/s/AKfycbwnAjS1C8-9Vx_PjG7AITdacYJyguB6IBZpqDJmawiDhfQWTZUK25IyW-bXXvrd-XD9/exec";
 
       // ============ LATE CONFIGURATION ============
-      // Set your cutoff time for "Late" (24-hour format)
-      // Example: 8:00 AM = "08:00", 9:00 AM = "09:00"
       const LATE_CUTOFF_TIME = "08:00";
 
       // ============ LATE EXCEPTIONS ============
-      // List of Student IDs who are exempt from late marking
-      // These students can arrive after the cutoff time without being marked "Late"
-      // Add student IDs here (case sensitive)
       const LATE_EXCEPTIONS = [
-        "SIS-20260502", // Fulan bin Fulan - arrives late due to special schedule
-        "SIS-20260402", // Another student with exception
-        "SIS-20260108", // Add more student IDs as needed
-        // "STU-003",
-        // "STU-004"
+        "SIS-20260108",
+        "SIS-20260502",
+        "SIS-20260402",
+        "SIS-20260401",
       ];
 
       // ============ CAMERA CONFIGURATION ============
       let currentCamera = "environment";
       let html5QrCode = null;
       let isScanning = false;
+      let cameraInitialized = false;
 
       // ============ GLOBAL VARIABLES ============
       let attendanceRecords = [];
@@ -571,23 +634,16 @@
         }
       }
 
-      // Check if a student has late exception
       function hasLateException(studentId) {
         return LATE_EXCEPTIONS.includes(studentId);
       }
 
-      // Check if a time is late (after cutoff) - but with exception check
       function isLateForStudent(timeStr, studentId) {
         if (!timeStr) return false;
-
-        // If student has exception, they are never late
-        if (hasLateException(studentId)) {
-          return false;
-        }
+        if (hasLateException(studentId)) return false;
 
         const [hours, minutes] = timeStr.split(":").map(Number);
         const timeMinutes = hours * 60 + minutes;
-
         const [cutoffHours, cutoffMinutes] =
           LATE_CUTOFF_TIME.split(":").map(Number);
         const cutoffMinutesTotal = cutoffHours * 60 + cutoffMinutes;
@@ -595,7 +651,6 @@
         return timeMinutes > cutoffMinutesTotal;
       }
 
-      // Load students from Google Sheets
       async function loadStudentsFromSheet() {
         if (isLoadingStudents) return;
         isLoadingStudents = true;
@@ -642,7 +697,6 @@
         }
       }
 
-      // Display students with late exceptions
       function displayExceptions() {
         const container = document.getElementById("exceptionList");
         const exceptionStudents = students.filter((s) =>
@@ -664,7 +718,6 @@
           .join("");
       }
 
-      // Load attendance records from localStorage
       function loadAttendanceLocal() {
         const storedAttendance = localStorage.getItem(
           "attendance_records_inout",
@@ -695,7 +748,6 @@
         const todayIn = todayRecords.filter((r) => r.type === "IN").length;
         const todayOut = todayRecords.filter((r) => r.type === "OUT").length;
 
-        // Count late arrivals (IN records after cutoff time, excluding exceptions)
         const lateArrivals = todayRecords.filter((r) => {
           if (r.type !== "IN") return false;
           const timeStr = new Date(r.timestamp).toLocaleTimeString("en-US", {
@@ -707,7 +759,6 @@
         });
         const lateCount = lateArrivals.length;
 
-        // Count exception arrivals (students with exception who arrived after cutoff)
         const exceptionArrivals = todayRecords.filter((r) => {
           if (r.type !== "IN") return false;
           if (!hasLateException(r.studentId)) return false;
@@ -761,9 +812,7 @@
                 },
               );
 
-              // Check if student has exception
               if (hasLateException(rec.studentId)) {
-                // Student has exception - check if they arrived after cutoff
                 if (timeStr > LATE_CUTOFF_TIME) {
                   isExceptionArrival = true;
                   lateLabel =
@@ -776,7 +825,6 @@
                   statusClass = "status-in";
                 }
               } else {
-                // Regular student - check if late
                 if (isLateForStudent(timeStr, rec.studentId)) {
                   isLateArrival = true;
                   lateLabel = '<span class="late-badge">🕒 Late</span>';
@@ -895,7 +943,6 @@
 
           const actionText = type === "IN" ? "checked IN" : "checked OUT";
 
-          // Check status for IN
           let statusMessage = "";
           if (type === "IN") {
             const timeStr = new Date().toLocaleTimeString("en-US", {
@@ -941,7 +988,6 @@
         const status = getTodayStatus(student.id);
         let statusText = "";
 
-        // Check if student has exception
         const hasException = hasLateException(student.id);
         const exceptionText = hasException ? " ⭐ (Late Exception)" : "";
 
@@ -1023,36 +1069,68 @@
         }
       }
 
-      async function switchCamera(cameraType) {
-        if (!html5QrCode) return;
+      // ============ CAMERA FUNCTIONS ============
 
-        if (isScanning) {
-          try {
-            await html5QrCode.stop();
-            isScanning = false;
-          } catch (e) {}
+      function showCameraError(message) {
+        const reader = document.getElementById("reader");
+        reader.innerHTML = `
+            <div class="camera-error">
+                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                <p><strong>Camera Error</strong></p>
+                <p style="font-size: 0.9rem; margin: 10px 0;">${message}</p>
+                <button onclick="initScanner()">
+                    <i class="fas fa-sync-alt"></i> Retry Camera
+                </button>
+            </div>
+        `;
+      }
+
+      async function switchCamera(cameraType) {
+        if (!html5QrCode) {
+          showToast("Scanner not initialized", true);
+          return;
         }
 
-        const readerElement = document.getElementById("reader");
-        if (readerElement) readerElement.innerHTML = "";
-
         try {
+          if (isScanning) {
+            await html5QrCode.stop();
+            isScanning = false;
+            cameraInitialized = false;
+          }
+
+          // Clear reader
+          const readerElement = document.getElementById("reader");
+          readerElement.innerHTML = `
+                <div class="camera-loading">
+                    <i class="fas fa-camera" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                    <div class="loading-spinner" style="margin: 10px auto;"></div>
+                    <p>Switching camera...</p>
+                </div>
+            `;
+
+          // Start with new camera
           const config = {
             fps: 10,
             qrbox: { width: 280, height: 280 },
             aspectRatio: 1.0,
           };
+
           await html5QrCode.start(
             {
               facingMode: cameraType === "environment" ? "environment" : "user",
             },
             config,
             handleScannedQR,
-            (errorMessage) => {},
+            (errorMessage) => {
+              // Silent error for continuous scanning
+            },
           );
+
           isScanning = true;
+          cameraInitialized = true;
           currentCamera = cameraType;
 
+          // Update button states
           const backBtn = document.getElementById("switchBackBtn");
           const frontBtn = document.getElementById("switchFrontBtn");
           if (cameraType === "environment") {
@@ -1062,50 +1140,140 @@
             frontBtn.classList.add("active");
             backBtn.classList.remove("active");
           }
+
           showToast(
             `Switched to ${cameraType === "environment" ? "Back" : "Front"} Camera`,
           );
         } catch (err) {
+          console.error("Camera switch error:", err);
+          showCameraError(`Failed to switch camera: ${err.message}`);
           showToast(`Camera error: ${err.message}`, true);
+          isScanning = false;
+          cameraInitialized = false;
         }
       }
 
       async function initScanner() {
-        if (html5QrCode) {
-          try {
-            if (isScanning) await html5QrCode.stop();
-          } catch (e) {}
-        }
-
-        const readerElement = document.getElementById("reader");
-        if (!readerElement) return;
-        readerElement.innerHTML = "";
-
-        html5QrCode = new Html5Qrcode("reader");
-
         try {
+          // Stop existing scanner
+          if (html5QrCode) {
+            try {
+              if (isScanning) {
+                await html5QrCode.stop();
+              }
+            } catch (e) {
+              console.log("Error stopping scanner:", e);
+            }
+            isScanning = false;
+            cameraInitialized = false;
+          }
+
+          const readerElement = document.getElementById("reader");
+          if (!readerElement) return;
+
+          // Show loading
+          readerElement.innerHTML = `
+                <div class="camera-loading">
+                    <i class="fas fa-camera" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                    <div class="loading-spinner" style="margin: 10px auto;"></div>
+                    <p>Starting camera...</p>
+                    <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 5px;">Please grant camera permission when prompted.</p>
+                </div>
+            `;
+
+          // Initialize new scanner
+          html5QrCode = new Html5Qrcode("reader");
+
+          // Check if camera is available
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const hasCamera = devices.some(
+            (device) => device.kind === "videoinput",
+          );
+
+          if (!hasCamera) {
+            showCameraError(
+              "No camera found on this device. Please connect a camera and refresh.",
+            );
+            return;
+          }
+
           const config = {
             fps: 10,
             qrbox: { width: 280, height: 280 },
             aspectRatio: 1.0,
           };
-          await html5QrCode.start(
-            { facingMode: "environment" },
-            config,
-            handleScannedQR,
-            (errorMessage) => {},
-          );
-          isScanning = true;
-          showToast("Scanner ready");
+
+          // Try to start with back camera
+          let started = false;
+          let errorMsg = "";
+
+          try {
+            await html5QrCode.start(
+              { facingMode: "environment" },
+              config,
+              handleScannedQR,
+              (errorMessage) => {
+                // Silent error for continuous scanning
+              },
+            );
+            started = true;
+            currentCamera = "environment";
+            document.getElementById("switchBackBtn").classList.add("active");
+            document
+              .getElementById("switchFrontBtn")
+              .classList.remove("active");
+            showToast("Scanner ready - Back Camera active");
+          } catch (err) {
+            errorMsg = err.message;
+            console.error("Back camera error:", err);
+
+            // Try front camera as fallback
+            try {
+              await html5QrCode.start(
+                { facingMode: "user" },
+                config,
+                handleScannedQR,
+                (errorMessage) => {},
+              );
+              started = true;
+              currentCamera = "user";
+              document.getElementById("switchFrontBtn").classList.add("active");
+              document
+                .getElementById("switchBackBtn")
+                .classList.remove("active");
+              showToast("Scanner ready - Front Camera active (fallback)");
+            } catch (fallbackErr) {
+              console.error("Front camera error:", fallbackErr);
+              errorMsg = fallbackErr.message;
+              started = false;
+            }
+          }
+
+          if (started) {
+            isScanning = true;
+            cameraInitialized = true;
+            console.log("Camera initialized successfully");
+          } else {
+            showCameraError(
+              `Camera initialization failed: ${errorMsg || "Unknown error"}`,
+            );
+            showToast("Camera access failed. Please check permissions.", true);
+            isScanning = false;
+            cameraInitialized = false;
+          }
         } catch (err) {
-          readerElement.innerHTML = `<div style="padding:20px; text-align:center; color:white; background:#c53030; border-radius:20px;">
-                <i class="fas fa-exclamation-triangle"></i> Camera error: ${err.message}
-            </div>`;
-          showToast("Camera access failed", true);
+          console.error("Scanner initialization error:", err);
+          showCameraError(`Failed to initialize scanner: ${err.message}`);
+          showToast(`Scanner error: ${err.message}`, true);
+          isScanning = false;
+          cameraInitialized = false;
         }
       }
 
+      // ============ MANUAL ENTRY FUNCTIONS ============
+
       let manualVisible = false;
+
       function toggleManual() {
         const panel = document.getElementById("manualPanel");
         manualVisible = !manualVisible;
@@ -1157,7 +1325,7 @@
 
       function escapeHtml(str) {
         if (!str) return "";
-        return str.replace(
+        return String(str).replace(
           /[&<>]/g,
           (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m],
         );
@@ -1175,13 +1343,29 @@
         return true;
       }
 
-      // Event listeners
-      document
-        .getElementById("switchBackBtn")
-        .addEventListener("click", () => switchCamera("environment"));
+      // ============ EVENT LISTENERS ============
+
+      document.getElementById("switchBackBtn").addEventListener("click", () => {
+        if (currentCamera !== "environment") {
+          switchCamera("environment");
+        }
+      });
+
       document
         .getElementById("switchFrontBtn")
-        .addEventListener("click", () => switchCamera("user"));
+        .addEventListener("click", () => {
+          if (currentCamera !== "user") {
+            switchCamera("user");
+          }
+        });
+
+      document
+        .getElementById("restartCameraBtn")
+        .addEventListener("click", () => {
+          showToast("Restarting camera...");
+          initScanner();
+        });
+
       document
         .getElementById("modalInBtn")
         .addEventListener("click", async () => {
@@ -1190,6 +1374,7 @@
             closeModal();
           }
         });
+
       document
         .getElementById("modalOutBtn")
         .addEventListener("click", async () => {
@@ -1198,6 +1383,7 @@
             closeModal();
           }
         });
+
       document
         .getElementById("modalCancelBtn")
         .addEventListener("click", closeModal);
@@ -1205,6 +1391,7 @@
         if (e.target === document.getElementById("attendanceModal"))
           closeModal();
       });
+
       document.getElementById("refreshBtn").addEventListener("click", refresh);
       document
         .getElementById("manualInBtn")
@@ -1222,15 +1409,25 @@
         .getElementById("manualSubmitOut")
         .addEventListener("click", manualOut);
 
+      // ============ INITIALIZE ============
+
       if (checkConfig()) {
         loadStudentsFromSheet().then(() => {
           loadAttendanceLocal();
-          initScanner();
+          // Delay camera initialization to ensure DOM is ready
+          setTimeout(() => {
+            initScanner();
+          }, 500);
         });
       }
 
-      window.addEventListener("beforeunload", () => {
-        if (html5QrCode && isScanning) html5QrCode.stop().catch((e) => {});
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", async () => {
+        if (html5QrCode && isScanning) {
+          try {
+            await html5QrCode.stop();
+          } catch (e) {}
+        }
       });
     </script>
   </body>
