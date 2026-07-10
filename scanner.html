@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover"
+    />
+    <title>QR Attendance | Sapporo Internatioanl School</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", sans-serif;
+      }
+      body {
+        background: linear-gradient(135deg, #0b7b3e, #0b7b3e, #0b7b3e);
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+      .card {
+        background: white;
+        border-radius: 32px;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
+      }
+      .card-header {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        color: white;
+        padding: 25px;
+        text-align: center;
+      }
+      .card-header h1 {
+        font-size: 1.8rem;
+      }
+      .card-body {
+        padding: 25px;
+      }
+      .scanner-container {
+        background: #000;
+        border-radius: 24px;
+        overflow: hidden;
+        margin-bottom: 15px;
+        position: relative;
+      }
+      #reader {
+        width: 100%;
+        min-height: 350px;
+      }
+
+      .camera-controls {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .cam-btn {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 40px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        flex: 1;
+        justify-content: center;
+        max-width: 180px;
+      }
+      .cam-btn:hover {
+        transform: translateY(-2px);
+        opacity: 0.9;
+      }
+      .cam-btn.active {
+        background: #2ecc71;
+        box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+      }
+
+      .stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f0f4f8;
+        border-radius: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .stat-box {
+        text-align: center;
+        flex: 1;
+        min-width: 70px;
+      }
+      .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a1a2e;
+      }
+      .stat-number.late {
+        color: #95a5a6;
+      }
+      .stat-number.exception {
+        color: #f39c12;
+      }
+      .stat-label {
+        font-size: 0.7rem;
+        color: #718096;
+      }
+      .btn {
+        border: none;
+        padding: 12px 24px;
+        border-radius: 40px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      .btn-success {
+        background: #2ecc71;
+        color: white;
+      }
+      .btn-danger {
+        background: #e74c3c;
+        color: white;
+      }
+      .btn-outline {
+        background: white;
+        border: 2px solid #cbd5e1;
+        color: #1a1a2e;
+      }
+      .btn-warning {
+        background: #f39c12;
+        color: white;
+      }
+      .attendance-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 15px;
+      }
+      .attendance-item {
+        background: #f0f4f8;
+        border-radius: 16px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-left: 4px solid;
+      }
+      .attendance-item.late {
+        border-left-color: #95a5a6 !important;
+        background: #f8f9fa;
+      }
+      .attendance-item.late .status-badge {
+        background: #95a5a6 !important;
+      }
+      .attendance-item.exception {
+        border-left-color: #f39c12 !important;
+        background: #fffbf0;
+      }
+      .attendance-item.exception .status-badge {
+        background: #f39c12 !important;
+      }
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #333;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 40px;
+        opacity: 0;
+        transition: 0.3s;
+        z-index: 1000;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1001;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+      }
+      .modal-content {
+        background: white;
+        margin: 15% auto;
+        padding: 0;
+        border-radius: 32px;
+        width: 90%;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateY(-50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      .modal-header {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        color: white;
+        padding: 20px;
+        border-radius: 32px 32px 0 0;
+        text-align: center;
+      }
+      .modal-body {
+        padding: 25px;
+        text-align: center;
+      }
+      .modal-buttons {
+        display: flex;
+        gap: 15px;
+        padding: 0 25px 25px 25px;
+      }
+      .modal-buttons button {
+        flex: 1;
+        padding: 12px;
+        border-radius: 40px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+      }
+      .btn-in {
+        background: #2ecc71;
+        color: white;
+      }
+      .btn-out {
+        background: #e74c3c;
+        color: white;
+      }
+      .btn-cancel {
+        background: #95a5a6;
+        color: white;
+      }
+      .student-info-modal {
+        background: #f0f4f8;
+        padding: 15px;
+        border-radius: 16px;
+        margin: 15px 0;
+      }
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+      .status-in {
+        background: #2ecc71;
+        color: white;
+      }
+      .status-out {
+        background: #e74c3c;
+        color: white;
+      }
+      .status-late {
+        background: #95a5a6;
+        color: white;
+      }
+      .status-exception {
+        background: #f39c12;
+        color: white;
+      }
+      .config-card {
+        background: #fef5e7;
+        border-left: 4px solid #f39c12;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 16px;
+        font-size: 0.85rem;
+      }
+      .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #2c5364;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        margin-right: 10px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .sync-status {
+        font-size: 0.8rem;
+        padding: 8px 15px;
+        border-radius: 20px;
+        text-align: center;
+        margin-bottom: 15px;
+      }
+      .sync-status.success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .sync-status.loading {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .sync-status.error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .late-badge {
+        background: #95a5a6;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        margin-left: 5px;
+      }
+      .exception-badge {
+        background: #f39c12;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        margin-left: 5px;
+      }
+      .exception-config {
+        background: #fffbf0;
+        padding: 15px;
+        border-radius: 16px;
+        margin-bottom: 15px;
+        border: 1px solid #f39c12;
+      }
+      .exception-config h4 {
+        color: #f39c12;
+        margin-bottom: 10px;
+      }
+      .exception-config small {
+        display: block;
+        color: #718096;
+        margin-top: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <div class="card-header">
+          <img src="img/LogoSIS-white.png" width="10%" height="10%" />
+          <h1><i class="fas fa-camera"></i> Attendance Scanner</h1>
+          <p>Scan QR → Choose IN or OUT</p>
+        </div>
+        <div class="card-body">
+          <div class="config-card" id="configWarning" style="display: none">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Google Script URL not configured!</strong><br />
+            Please update <code>GOOGLE_SCRIPT_URL</code> in the JavaScript
+            section.
+          </div>
+
+          <div
+            id="syncStatus"
+            class="sync-status loading"
+            style="margin-bottom: 15px"
+          >
+            <div class="loading-spinner"></div>
+            Loading students ...
+          </div>
+
+          <div class="camera-controls">
+            <button id="switchBackBtn" class="cam-btn active">
+              <i class="fas fa-camera"></i> Back Camera
+            </button>
+            <button id="switchFrontBtn" class="cam-btn">
+              <i class="fas fa-camera-retro"></i> Front Camera
+            </button>
+          </div>
+
+          <div class="scanner-container"><div id="reader"></div></div>
+
+          <div class="stats">
+            <div class="stat-box">
+              <div class="stat-number" id="todayInCount">0</div>
+              <div class="stat-label">IN Today</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-number late" id="lateCount">0</div>
+              <div class="stat-label">🕒 Late</div>
+            </div>
+
+            <div class="stat-box">
+              <div class="stat-number" id="todayOutCount">0</div>
+              <div class="stat-label">OUT Today</div>
+            </div>
+          </div>
+
+          <div
+            id="lastScanStatus"
+            style="
+              text-align: center;
+              padding: 10px;
+              background: #f0f4f8;
+              border-radius: 20px;
+              margin-bottom: 15px;
+            "
+          >
+            <i class="fas fa-info-circle"></i> Ready to scan QR codes
+          </div>
+
+          <div style="display: flex; gap: 10px">
+            <button id="manualInBtn" class="btn-success" style="flex: 1">
+              <i class="fas fa-sign-in-alt"></i> Manual IN
+            </button>
+            <button id="manualOutBtn" class="btn-danger" style="flex: 1">
+              <i class="fas fa-sign-out-alt"></i> Manual OUT
+            </button>
+          </div>
+
+          <div id="manualPanel" style="display: none; margin-top: 10px">
+            <input
+              type="text"
+              id="manualStudentId"
+              placeholder="Enter Student ID"
+              style="
+                width: 100%;
+                padding: 12px;
+                margin: 10px 0;
+                border-radius: 16px;
+                border: 2px solid #e0e0e0;
+              "
+            />
+            <button id="manualSubmitIn" class="btn-success">Submit IN</button>
+            <button id="manualSubmitOut" class="btn-danger">Submit OUT</button>
+          </div>
+
+          <button id="toggleManualBtn" class="btn-outline">
+            <i class="fas fa-keyboard"></i> Show Manual Entry
+          </button>
+
+          <h3 style="margin-top: 20px">
+            <i class="fas fa-history"></i> Today's Records
+          </h3>
+          <div id="attendanceList" class="attendance-list"></div>
+          <button id="refreshBtn" class="btn-outline" style="margin-top: 10px">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Popup for IN/OUT Selection -->
+    <div id="attendanceModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i class="fas fa-qrcode"></i> Record Attendance</h3>
+        </div>
+        <div class="modal-body">
+          <div id="modalStudentInfo" class="student-info-modal">
+            <p><strong id="modalStudentName">Student Name</strong></p>
+            <p id="modalStudentId">ID: ---</p>
+            <p id="modalStudentGrade">Grade: ---</p>
+            <p id="modalStudentEmail">Email: ---</p>
+            <p id="modalCurrentStatus" style="margin-top: 10px"></p>
+          </div>
+          <p style="margin: 10px 0">Select IN or OUT:</p>
+        </div>
+        <div class="modal-buttons">
+          <button id="modalInBtn" class="btn-in">
+            <i class="fas fa-sign-in-alt"></i> IN
+          </button>
+          <button id="modalOutBtn" class="btn-out">
+            <i class="fas fa-sign-out-alt"></i> OUT
+          </button>
+          <button id="modalCancelBtn" class="btn-cancel">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+      // ============ CONFIGURATION ============
+      const GOOGLE_SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbwnAjS1C8-9Vx_PjG7AITdacYJyguB6IBZpqDJmawiDhfQWTZUK25IyW-bXXvrd-XD9/exec";
+
+      // ============ LATE CONFIGURATION ============
+      // Set your cutoff time for "Late" (24-hour format)
+      // Example: 8:00 AM = "08:00", 9:00 AM = "09:00"
+      const LATE_CUTOFF_TIME = "08:00";
+
+      // ============ LATE EXCEPTIONS ============
+      // List of Student IDs who are exempt from late marking
+      // These students can arrive after the cutoff time without being marked "Late"
+      // Add student IDs here (case sensitive)
+      const LATE_EXCEPTIONS = [
+        "SIS-20260502", // Fulan bin Fulan - arrives late due to special schedule
+        "SIS-20260402", // Another student with exception
+        "SIS-20260108", // Add more student IDs as needed
+        // "STU-003",
+        // "STU-004"
+      ];
+
+      // ============ CAMERA CONFIGURATION ============
+      let currentCamera = "environment";
+      let html5QrCode = null;
+      let isScanning = false;
+
+      // ============ GLOBAL VARIABLES ============
+      let attendanceRecords = [];
+      let students = [];
+      let pendingStudent = null;
+      let isProcessing = false;
+      let isLoadingStudents = false;
+
+      function showToast(message, isError = false) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.style.backgroundColor = isError ? "#e74c3c" : "#2ecc71";
+        toast.style.opacity = "1";
+        setTimeout(() => (toast.style.opacity = "0"), 3000);
+      }
+
+      function updateSyncStatus(status, message) {
+        const statusDiv = document.getElementById("syncStatus");
+        if (status === "loading") {
+          statusDiv.className = "sync-status loading";
+          statusDiv.innerHTML =
+            '<div class="loading-spinner"></div> ' + message;
+        } else if (status === "success") {
+          statusDiv.className = "sync-status success";
+          statusDiv.innerHTML =
+            '<i class="fas fa-check-circle"></i> ' + message;
+        } else {
+          statusDiv.className = "sync-status error";
+          statusDiv.innerHTML =
+            '<i class="fas fa-exclamation-circle"></i> ' + message;
+        }
+      }
+
+      // Check if a student has late exception
+      function hasLateException(studentId) {
+        return LATE_EXCEPTIONS.includes(studentId);
+      }
+
+      // Check if a time is late (after cutoff) - but with exception check
+      function isLateForStudent(timeStr, studentId) {
+        if (!timeStr) return false;
+
+        // If student has exception, they are never late
+        if (hasLateException(studentId)) {
+          return false;
+        }
+
+        const [hours, minutes] = timeStr.split(":").map(Number);
+        const timeMinutes = hours * 60 + minutes;
+
+        const [cutoffHours, cutoffMinutes] =
+          LATE_CUTOFF_TIME.split(":").map(Number);
+        const cutoffMinutesTotal = cutoffHours * 60 + cutoffMinutes;
+
+        return timeMinutes > cutoffMinutesTotal;
+      }
+
+      // Load students from Google Sheets
+      async function loadStudentsFromSheet() {
+        if (isLoadingStudents) return;
+        isLoadingStudents = true;
+
+        updateSyncStatus("loading", "Loading students from Google Sheets...");
+
+        try {
+          const url = `${GOOGLE_SCRIPT_URL}?action=getStudents&t=${Date.now()}`;
+          const response = await fetch(url);
+          const data = await response.json();
+
+          if (data.status === "success" && data.students) {
+            students = data.students;
+            localStorage.setItem(
+              "attendance_students_backup",
+              JSON.stringify(students),
+            );
+            updateSyncStatus("success", `Loaded ${students.length} students`);
+            displayExceptions();
+            return true;
+          } else {
+            throw new Error(data.message || "Invalid data");
+          }
+        } catch (error) {
+          console.error("Error loading students:", error);
+          const backup = localStorage.getItem("attendance_students_backup");
+          if (backup) {
+            students = JSON.parse(backup);
+            updateSyncStatus(
+              "success",
+              `Using cached data (${students.length} students)`,
+            );
+            showToast(`⚠️ Using cached student data`, true);
+            displayExceptions();
+            return true;
+          } else {
+            students = [];
+            updateSyncStatus("error", `Failed to load: ${error.message}`);
+            showToast(`❌ Failed to load students: ${error.message}`, true);
+            return false;
+          }
+        } finally {
+          isLoadingStudents = false;
+        }
+      }
+
+      // Display students with late exceptions
+      function displayExceptions() {
+        const container = document.getElementById("exceptionList");
+        const exceptionStudents = students.filter((s) =>
+          LATE_EXCEPTIONS.includes(s.id),
+        );
+
+        if (exceptionStudents.length === 0) {
+          container.innerHTML = "No students currently have late exceptions.";
+          return;
+        }
+
+        container.innerHTML = exceptionStudents
+          .map(
+            (s) =>
+              `<span style="display:inline-block; background:#fff3cd; padding:2px 10px; border-radius:20px; margin:3px; border:1px solid #f39c12;">
+                ⭐ ${escapeHtml(s.name)} (${s.id})
+            </span>`,
+          )
+          .join("");
+      }
+
+      // Load attendance records from localStorage
+      function loadAttendanceLocal() {
+        const storedAttendance = localStorage.getItem(
+          "attendance_records_inout",
+        );
+        if (storedAttendance) {
+          attendanceRecords = JSON.parse(storedAttendance);
+        } else {
+          attendanceRecords = [];
+        }
+        updateStats();
+        renderAttendanceList();
+      }
+
+      function saveAttendanceLocal() {
+        localStorage.setItem(
+          "attendance_records_inout",
+          JSON.stringify(attendanceRecords),
+        );
+        updateStats();
+        renderAttendanceList();
+      }
+
+      function updateStats() {
+        const today = new Date().toDateString();
+        const todayRecords = attendanceRecords.filter(
+          (r) => new Date(r.timestamp).toDateString() === today,
+        );
+        const todayIn = todayRecords.filter((r) => r.type === "IN").length;
+        const todayOut = todayRecords.filter((r) => r.type === "OUT").length;
+
+        // Count late arrivals (IN records after cutoff time, excluding exceptions)
+        const lateArrivals = todayRecords.filter((r) => {
+          if (r.type !== "IN") return false;
+          const timeStr = new Date(r.timestamp).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          });
+          return isLateForStudent(timeStr, r.studentId);
+        });
+        const lateCount = lateArrivals.length;
+
+        // Count exception arrivals (students with exception who arrived after cutoff)
+        const exceptionArrivals = todayRecords.filter((r) => {
+          if (r.type !== "IN") return false;
+          if (!hasLateException(r.studentId)) return false;
+          const timeStr = new Date(r.timestamp).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          });
+          return (
+            isLateForStudent(timeStr, r.studentId) === false &&
+            timeStr > LATE_CUTOFF_TIME
+          );
+        });
+        const exceptionCount = exceptionArrivals.length;
+
+        document.getElementById("todayInCount").innerText = todayIn;
+        document.getElementById("todayOutCount").innerText = todayOut;
+        document.getElementById("lateCount").innerText = lateCount;
+        document.getElementById("exceptionCount").innerText = exceptionCount;
+      }
+
+      function renderAttendanceList() {
+        const container = document.getElementById("attendanceList");
+        const today = new Date().toDateString();
+        const todayRecords = attendanceRecords
+          .filter((r) => new Date(r.timestamp).toDateString() === today)
+          .reverse();
+
+        if (todayRecords.length === 0) {
+          container.innerHTML =
+            '<div style="text-align:center; color:#999;">No records today</div>';
+          return;
+        }
+
+        container.innerHTML = todayRecords
+          .map((rec) => {
+            let isLateArrival = false;
+            let isExceptionArrival = false;
+            let lateLabel = "";
+            let extraClass = "";
+            let statusClass = "";
+            let borderColor = "";
+
+            if (rec.type === "IN") {
+              const timeStr = new Date(rec.timestamp).toLocaleTimeString(
+                "en-US",
+                {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                },
+              );
+
+              // Check if student has exception
+              if (hasLateException(rec.studentId)) {
+                // Student has exception - check if they arrived after cutoff
+                if (timeStr > LATE_CUTOFF_TIME) {
+                  isExceptionArrival = true;
+                  lateLabel =
+                    '<span class="exception-badge">⭐ Exception</span>';
+                  extraClass = "exception";
+                  statusClass = "status-exception";
+                  borderColor = "#f39c12";
+                } else {
+                  borderColor = "#2ecc71";
+                  statusClass = "status-in";
+                }
+              } else {
+                // Regular student - check if late
+                if (isLateForStudent(timeStr, rec.studentId)) {
+                  isLateArrival = true;
+                  lateLabel = '<span class="late-badge">🕒 Late</span>';
+                  extraClass = "late";
+                  statusClass = "status-late";
+                  borderColor = "#95a5a6";
+                } else {
+                  borderColor = "#2ecc71";
+                  statusClass = "status-in";
+                }
+              }
+            } else {
+              borderColor = "#e74c3c";
+              statusClass = "status-out";
+            }
+
+            const itemClass = extraClass
+              ? `attendance-item ${extraClass}`
+              : "attendance-item";
+
+            return `
+                <div class="${itemClass}" style="border-left-color: ${borderColor};">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong>${escapeHtml(rec.studentName)}</strong>
+                        <div>
+                            <span class="status-badge ${statusClass}">${rec.type}</span>
+                            ${lateLabel}
+                        </div>
+                    </div>
+                    <div style="font-size:0.75rem;">${rec.studentId} | ${rec.grade}</div>
+                    <div style="font-size:0.7rem;">${new Date(rec.timestamp).toLocaleTimeString()}</div>
+                </div>
+            `;
+          })
+          .join("");
+      }
+
+      function getTodayStatus(studentId) {
+        const today = new Date().toDateString();
+        const hasIN = attendanceRecords.some(
+          (r) =>
+            r.studentId === studentId &&
+            r.type === "IN" &&
+            new Date(r.timestamp).toDateString() === today,
+        );
+        const hasOUT = attendanceRecords.some(
+          (r) =>
+            r.studentId === studentId &&
+            r.type === "OUT" &&
+            new Date(r.timestamp).toDateString() === today,
+        );
+
+        if (hasIN && hasOUT) return "completed";
+        if (hasIN) return "in_only";
+        return "none";
+      }
+
+      async function sendAttendanceToSheet(student, type) {
+        const url = `${GOOGLE_SCRIPT_URL}?action=attendance&studentId=${encodeURIComponent(student.id)}&studentName=${encodeURIComponent(student.name)}&grade=${encodeURIComponent(student.grade)}&studentEmail=${encodeURIComponent(student.email)}&phone=${encodeURIComponent(student.phone)}&type=${type}&source=qr_scan&t=${Date.now()}`;
+
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error("Error:", error);
+          throw error;
+        }
+      }
+
+      async function processAttendance(student, type) {
+        if (isProcessing) {
+          showToast("Please wait, processing...", true);
+          return false;
+        }
+
+        isProcessing = true;
+
+        document.getElementById("modalInBtn").disabled = true;
+        document.getElementById("modalOutBtn").disabled = true;
+
+        try {
+          const result = await sendAttendanceToSheet(student, type);
+
+          if (result.status === "error") {
+            showToast(result.message, true);
+            isProcessing = false;
+            return false;
+          }
+
+          const record = {
+            studentId: student.id,
+            studentName: student.name,
+            grade: student.grade,
+            email: student.email,
+            phone: student.phone,
+            timestamp: new Date().toISOString(),
+            type: type,
+            source: "qr_scan",
+          };
+
+          if (type === "IN") {
+            const today = new Date().toDateString();
+            const existingINIndex = attendanceRecords.findIndex(
+              (r) =>
+                r.studentId === student.id &&
+                r.type === "IN" &&
+                new Date(r.timestamp).toDateString() === today,
+            );
+            if (existingINIndex !== -1) {
+              attendanceRecords.splice(existingINIndex, 1);
+            }
+          }
+          attendanceRecords.unshift(record);
+          saveAttendanceLocal();
+
+          const actionText = type === "IN" ? "checked IN" : "checked OUT";
+
+          // Check status for IN
+          let statusMessage = "";
+          if (type === "IN") {
+            const timeStr = new Date().toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            });
+
+            if (hasLateException(student.id)) {
+              if (timeStr > LATE_CUTOFF_TIME) {
+                statusMessage = " ⭐ (Exception - Late allowed)";
+              }
+            } else {
+              if (isLateForStudent(timeStr, student.id)) {
+                statusMessage = " 🕒 (Late arrival)";
+              }
+            }
+          }
+
+          showToast(
+            `✅ ${student.name} ${actionText} successfully!${statusMessage}`,
+          );
+
+          document.getElementById("lastScanStatus").innerHTML = `
+                <i class="fas ${type === "IN" ? "fa-sign-in-alt" : "fa-sign-out-alt"}"></i> 
+                Last: ${student.name} ${type === "IN" ? "IN" : "OUT"} at ${new Date().toLocaleTimeString()}${statusMessage}
+            `;
+
+          isProcessing = false;
+          return true;
+        } catch (error) {
+          console.error("Process error:", error);
+          showToast(`Error: ${error.message}`, true);
+          isProcessing = false;
+          return false;
+        } finally {
+          document.getElementById("modalInBtn").disabled = false;
+          document.getElementById("modalOutBtn").disabled = false;
+        }
+      }
+
+      function showModal(student) {
+        const status = getTodayStatus(student.id);
+        let statusText = "";
+
+        // Check if student has exception
+        const hasException = hasLateException(student.id);
+        const exceptionText = hasException ? " ⭐ (Late Exception)" : "";
+
+        if (status === "completed") {
+          statusText = `<span style="color:#e74c3c;">⚠️ Already completed both IN and OUT today!${exceptionText}</span>`;
+        } else if (status === "in_only") {
+          statusText = `<span style="color:#f39c12;">📤 Already checked IN. You can now check OUT.${exceptionText}</span>`;
+        } else {
+          statusText = `<span style="color:#2ecc71;">✅ Ready to check IN.${exceptionText}</span>`;
+        }
+
+        pendingStudent = student;
+        document.getElementById("modalStudentName").innerHTML =
+          `<i class="fas fa-user"></i> ${escapeHtml(student.name)} ${hasException ? "⭐" : ""}`;
+        document.getElementById("modalStudentId").innerHTML =
+          `<i class="fas fa-id-card"></i> ID: ${student.id}`;
+        document.getElementById("modalStudentGrade").innerHTML =
+          `<i class="fas fa-graduation-cap"></i> Grade: ${student.grade}`;
+        document.getElementById("modalStudentEmail").innerHTML =
+          `<i class="fas fa-envelope"></i> ${student.email}`;
+        document.getElementById("modalCurrentStatus").innerHTML = statusText;
+
+        const inBtn = document.getElementById("modalInBtn");
+        const outBtn = document.getElementById("modalOutBtn");
+
+        if (status === "completed") {
+          inBtn.disabled = true;
+          outBtn.disabled = true;
+          inBtn.style.opacity = "0.5";
+          outBtn.style.opacity = "0.5";
+        } else if (status === "in_only") {
+          inBtn.disabled = true;
+          outBtn.disabled = false;
+          inBtn.style.opacity = "0.5";
+          outBtn.style.opacity = "1";
+        } else {
+          inBtn.disabled = false;
+          outBtn.disabled = true;
+          inBtn.style.opacity = "1";
+          outBtn.style.opacity = "0.5";
+        }
+
+        document.getElementById("attendanceModal").style.display = "block";
+      }
+
+      function closeModal() {
+        document.getElementById("attendanceModal").style.display = "none";
+        pendingStudent = null;
+      }
+
+      function handleScannedQR(decodedText) {
+        try {
+          const data = JSON.parse(decodedText);
+          if (data.type === "attendance" && data.studentId) {
+            const student = students.find((s) => s.id === data.studentId);
+            if (student) {
+              showModal(student);
+            } else {
+              showToast(
+                `Student ID ${data.studentId} not found in database!`,
+                true,
+              );
+            }
+          } else {
+            showToast("Invalid QR code", true);
+          }
+        } catch (e) {
+          const student = students.find((s) => s.id === decodedText);
+          if (student) {
+            showModal(student);
+          } else if (decodedText.startsWith("STU-")) {
+            showToast(
+              `Student ID ${decodedText} not found! Please register first.`,
+              true,
+            );
+          } else {
+            showToast("QR not recognized", true);
+          }
+        }
+      }
+
+      async function switchCamera(cameraType) {
+        if (!html5QrCode) return;
+
+        if (isScanning) {
+          try {
+            await html5QrCode.stop();
+            isScanning = false;
+          } catch (e) {}
+        }
+
+        const readerElement = document.getElementById("reader");
+        if (readerElement) readerElement.innerHTML = "";
+
+        try {
+          const config = {
+            fps: 10,
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0,
+          };
+          await html5QrCode.start(
+            {
+              facingMode: cameraType === "environment" ? "environment" : "user",
+            },
+            config,
+            handleScannedQR,
+            (errorMessage) => {},
+          );
+          isScanning = true;
+          currentCamera = cameraType;
+
+          const backBtn = document.getElementById("switchBackBtn");
+          const frontBtn = document.getElementById("switchFrontBtn");
+          if (cameraType === "environment") {
+            backBtn.classList.add("active");
+            frontBtn.classList.remove("active");
+          } else {
+            frontBtn.classList.add("active");
+            backBtn.classList.remove("active");
+          }
+          showToast(
+            `Switched to ${cameraType === "environment" ? "Back" : "Front"} Camera`,
+          );
+        } catch (err) {
+          showToast(`Camera error: ${err.message}`, true);
+        }
+      }
+
+      async function initScanner() {
+        if (html5QrCode) {
+          try {
+            if (isScanning) await html5QrCode.stop();
+          } catch (e) {}
+        }
+
+        const readerElement = document.getElementById("reader");
+        if (!readerElement) return;
+        readerElement.innerHTML = "";
+
+        html5QrCode = new Html5Qrcode("reader");
+
+        try {
+          const config = {
+            fps: 10,
+            qrbox: { width: 280, height: 280 },
+            aspectRatio: 1.0,
+          };
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            handleScannedQR,
+            (errorMessage) => {},
+          );
+          isScanning = true;
+          showToast("Scanner ready");
+        } catch (err) {
+          readerElement.innerHTML = `<div style="padding:20px; text-align:center; color:white; background:#c53030; border-radius:20px;">
+                <i class="fas fa-exclamation-triangle"></i> Camera error: ${err.message}
+            </div>`;
+          showToast("Camera access failed", true);
+        }
+      }
+
+      let manualVisible = false;
+      function toggleManual() {
+        const panel = document.getElementById("manualPanel");
+        manualVisible = !manualVisible;
+        panel.style.display = manualVisible ? "block" : "none";
+        document.getElementById("toggleManualBtn").innerHTML = manualVisible
+          ? '<i class="fas fa-camera"></i> Hide Manual Entry'
+          : '<i class="fas fa-keyboard"></i> Show Manual Entry';
+      }
+
+      async function manualIn() {
+        const studentId = document
+          .getElementById("manualStudentId")
+          .value.trim();
+        if (!studentId) {
+          showToast("Enter Student ID", true);
+          return;
+        }
+        const student = students.find((s) => s.id === studentId);
+        if (!student) {
+          showToast(`Student ID ${studentId} not found!`, true);
+          return;
+        }
+        await processAttendance(student, "IN");
+        document.getElementById("manualStudentId").value = "";
+      }
+
+      async function manualOut() {
+        const studentId = document
+          .getElementById("manualStudentId")
+          .value.trim();
+        if (!studentId) {
+          showToast("Enter Student ID", true);
+          return;
+        }
+        const student = students.find((s) => s.id === studentId);
+        if (!student) {
+          showToast(`Student ID ${studentId} not found!`, true);
+          return;
+        }
+        await processAttendance(student, "OUT");
+        document.getElementById("manualStudentId").value = "";
+      }
+
+      function refresh() {
+        renderAttendanceList();
+        updateStats();
+        showToast("Refreshed");
+      }
+
+      function escapeHtml(str) {
+        if (!str) return "";
+        return str.replace(
+          /[&<>]/g,
+          (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m],
+        );
+      }
+
+      function checkConfig() {
+        if (
+          GOOGLE_SCRIPT_URL ===
+          "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+        ) {
+          document.getElementById("configWarning").style.display = "block";
+          showToast("⚠️ Please configure your Google Script URL", true);
+          return false;
+        }
+        return true;
+      }
+
+      // Event listeners
+      document
+        .getElementById("switchBackBtn")
+        .addEventListener("click", () => switchCamera("environment"));
+      document
+        .getElementById("switchFrontBtn")
+        .addEventListener("click", () => switchCamera("user"));
+      document
+        .getElementById("modalInBtn")
+        .addEventListener("click", async () => {
+          if (pendingStudent && !isProcessing) {
+            await processAttendance(pendingStudent, "IN");
+            closeModal();
+          }
+        });
+      document
+        .getElementById("modalOutBtn")
+        .addEventListener("click", async () => {
+          if (pendingStudent && !isProcessing) {
+            await processAttendance(pendingStudent, "OUT");
+            closeModal();
+          }
+        });
+      document
+        .getElementById("modalCancelBtn")
+        .addEventListener("click", closeModal);
+      window.addEventListener("click", (e) => {
+        if (e.target === document.getElementById("attendanceModal"))
+          closeModal();
+      });
+      document.getElementById("refreshBtn").addEventListener("click", refresh);
+      document
+        .getElementById("manualInBtn")
+        .addEventListener("click", manualIn);
+      document
+        .getElementById("manualOutBtn")
+        .addEventListener("click", manualOut);
+      document
+        .getElementById("toggleManualBtn")
+        .addEventListener("click", toggleManual);
+      document
+        .getElementById("manualSubmitIn")
+        .addEventListener("click", manualIn);
+      document
+        .getElementById("manualSubmitOut")
+        .addEventListener("click", manualOut);
+
+      if (checkConfig()) {
+        loadStudentsFromSheet().then(() => {
+          loadAttendanceLocal();
+          initScanner();
+        });
+      }
+
+      window.addEventListener("beforeunload", () => {
+        if (html5QrCode && isScanning) html5QrCode.stop().catch((e) => {});
+      });
+    </script>
+  </body>
+</html>
