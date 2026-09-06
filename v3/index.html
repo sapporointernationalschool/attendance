@@ -73,19 +73,24 @@
         .loading-box { background: white; padding: 30px 40px; border-radius: 24px; text-align: center; }
         .loading-box .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid var(--sis-green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
         .loading-box p { color: #4a5568; font-weight: 500; }
-        .debug-panel { background: #f8fafc; border-radius: 12px; padding: 10px; margin-top: 10px; font-size: 0.7rem; color: #4a5568; display: none; border: 1px solid #e2e8f0; max-height: 150px; overflow-y: auto; }
+        .debug-panel { background: #f8fafc; border-radius: 12px; padding: 10px; margin-top: 10px; font-size: 0.7rem; color: #4a5568; display: none; border: 1px solid #e2e8f0; max-height: 250px; overflow-y: auto; }
         .debug-panel.show { display: block; }
         .debug-panel .label { font-weight: 600; color: #2d3748; }
-        .debug-panel .debug-line { padding: 2px 0; border-bottom: 1px solid #f0f2f5; }
+        .debug-panel .debug-line { padding: 3px 0; border-bottom: 1px solid #f0f2f5; font-family: monospace; font-size: 0.7rem; }
+        .debug-panel .debug-line:last-child { border-bottom: none; }
+        .debug-panel .debug-success { color: var(--sis-green); }
+        .debug-panel .debug-error { color: #e74c3c; }
         .refresh-status-btn { background: var(--sis-green); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.75rem; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; }
         .refresh-status-btn:hover { background: var(--sis-green-dark); }
+        .test-api-btn { background: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.75rem; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; margin-left: 5px; }
+        .test-api-btn:hover { background: #2980b9; }
         @media (max-width: 500px) { .header { padding: 20px; } .header .logo { font-size: 1.5rem; } .card { padding: 18px 16px; } .action-buttons .btn { font-size: 0.9rem; padding: 12px; } }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div class="logo">SIS Attendance</div>
+        <div class="logo"><i class="fas fa-tree"></i> SIS Attendance</div>
         <div class="subtitle">Sapporo International School</div>
     </div>
     
@@ -112,7 +117,8 @@
             <div class="details" id="studentDetails">ID: — | Grade: —</div>
             <div>
                 <span class="status-badge pending" id="statusBadge">⏳ Checking...</span>
-                <button id="refreshStatusBtn" class="refresh-status-btn"><i class="fas fa-sync-alt"></i> Refresh Status</button>
+                <button id="refreshStatusBtn" class="refresh-status-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button id="testApiBtn" class="test-api-btn"><i class="fas fa-vial"></i> Test</button>
             </div>
         </div>
         
@@ -147,6 +153,7 @@
             <div class="debug-line"><span class="label">Found Student:</span> <span id="debugFoundStudent">—</span></div>
             <div class="debug-line"><span class="label">Status Check:</span> <span id="debugStatusCheck">—</span></div>
             <div class="debug-line"><span class="label">Local Records:</span> <span id="debugLocalRecords">—</span></div>
+            <div class="debug-line"><span class="label">API Response:</span> <span id="debugApiResponse">—</span></div>
         </div>
         <button id="toggleDebugBtn" style="margin-top:10px; background:none; border:none; color:#718096; font-size:0.7rem; cursor:pointer;">
             <i class="fas fa-bug"></i> Toggle Debug
@@ -160,7 +167,7 @@
 <div id="toast" class="toast"></div>
 
 <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygLumG86lhFRecOUw4M__-DzpRQYBoPV-phFXzeYNoMjzZDo9OzWrCxDVRQ1b_9PsGHg/exec";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxdWeWwTghidP-EKhmoO60_xpULardEwYSPDyKmJVT7qsO2NiWXWKBalQ27UMhezktA7A/exec";
     
     let students = [];
     let attendanceRecords = [];
@@ -191,7 +198,9 @@
     const debugFoundStudent = $('debugFoundStudent');
     const debugStatusCheck = $('debugStatusCheck');
     const debugLocalRecords = $('debugLocalRecords');
+    const debugApiResponse = $('debugApiResponse');
     const refreshStatusBtn = $('refreshStatusBtn');
+    const testApiBtn = $('testApiBtn');
     
     function showToast(message, type = 'success') {
         toast.textContent = message;
@@ -203,13 +212,14 @@
     function showLoading(message) { loadingMessage.textContent = message; loadingOverlay.classList.add('show'); }
     function hideLoading() { loadingOverlay.classList.remove('show'); }
     
-    function updateDebug(scan, student, status) {
+    function updateDebug(scan, student, status, apiResponse = null) {
         if (debugMode) {
             debugPanel.classList.add('show');
-            if (scan) debugLastScan.textContent = scan;
-            if (student) debugFoundStudent.textContent = student;
-            if (status) debugStatusCheck.textContent = status;
+            if (scan !== undefined) debugLastScan.textContent = scan || '—';
+            if (student !== undefined) debugFoundStudent.textContent = student || '—';
+            if (status !== undefined) debugStatusCheck.textContent = status || '—';
             debugLocalRecords.textContent = attendanceRecords.length + ' records';
+            if (apiResponse) debugApiResponse.textContent = JSON.stringify(apiResponse).substring(0, 100) + '...';
         }
     }
     
@@ -218,10 +228,11 @@
         for (const [key, value] of Object.entries(params)) {
             url += `&${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
         }
+        console.log(`API Call: ${action}`, url);
         try {
             const response = await fetch(url);
             const data = await response.json();
-            console.log(`API ${action}:`, data);
+            console.log(`API Response (${action}):`, data);
             return data;
         } catch (error) {
             console.error("API Error:", error);
@@ -243,18 +254,18 @@
     }
     
     // ============================================
-    // CHECK STATUS - WITH RETRY AND FALLBACK
+    // CHECK STATUS - WITH RETRY
     // ============================================
     async function checkStatus(studentId, retryCount = 0) {
         console.log(`Checking status for: ${studentId} (attempt ${retryCount + 1})`);
         try {
             const result = await apiCall('checkStatus', { studentId });
             console.log("Status response:", result);
+            updateDebug(null, null, null, result);
             
             if (result.status === 'success') {
                 return result;
             } else if (retryCount < 2) {
-                // Retry after 1 second
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 return checkStatus(studentId, retryCount + 1);
             } else {
@@ -270,7 +281,29 @@
     }
     
     // ============================================
-    // RECORD ATTENDANCE - WITH RETRY
+    // TEST API CONNECTION
+    // ============================================
+    async function testApiConnection() {
+        showLoading('Testing API connection...');
+        try {
+            const result = await apiCall('test');
+            console.log("Test API result:", result);
+            if (result.status === 'success') {
+                showToast('✅ API connection successful!', 'success');
+                updateDebug(null, null, 'API Test: SUCCESS', result);
+            } else {
+                showToast('❌ API connection failed: ' + result.message, 'error');
+                updateDebug(null, null, 'API Test: FAILED', result);
+            }
+        } catch (error) {
+            showToast('❌ API connection error: ' + error.message, 'error');
+            updateDebug(null, null, 'API Test: ERROR', { error: error.message });
+        }
+        hideLoading();
+    }
+    
+    // ============================================
+    // RECORD ATTENDANCE
     // ============================================
     async function recordAttendance(studentId, type) {
         const student = students.find(s => s.id === studentId);
@@ -285,7 +318,7 @@
         showLoading(`Recording ${type} for ${student.name}...`);
         
         try {
-            // First, check current status from server
+            // Check current status first
             const status = await checkStatus(studentId);
             console.log("Pre-check status:", status);
             
@@ -304,7 +337,6 @@
             // Validation
             if (type === 'IN' && hasIN) {
                 showToast(`⚠️ Already IN at ${inTime}`, 'error');
-                // Update UI to show current status
                 updateStudentStatusDisplay(status);
                 hideLoading();
                 isProcessing = false;
@@ -335,6 +367,7 @@
             });
             
             console.log("Attendance result:", result);
+            updateDebug(null, null, null, result);
             
             if (result.status === 'success') {
                 const action = type === 'IN' ? 'checked IN' : 'checked OUT';
@@ -352,14 +385,12 @@
                     date: today
                 };
                 
-                // Remove existing records for today
                 attendanceRecords = attendanceRecords.filter(r => !(r.studentId === student.id && r.date === today));
                 attendanceRecords.unshift(record);
                 localStorage.setItem('sis_records', JSON.stringify(attendanceRecords));
-                
                 renderRecords();
                 
-                // Re-check status from server after recording
+                // Re-check status after recording
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 const updatedStatus = await checkStatus(studentId);
                 if (updatedStatus.status === 'success') {
@@ -429,7 +460,6 @@
         btnIn.disabled = true;
         btnOut.disabled = true;
         
-        // Check status from server
         checkStatus(student.id).then(status => {
             console.log("Status response for", student.id, ":", status);
             
@@ -442,27 +472,6 @@
                 statusBadge.className = 'status-badge out';
                 updateDebug(student.id, student.name, 'ERROR: ' + status.message);
                 showToast('Error checking student status', 'error');
-                
-                // Try to show from local records as fallback
-                const today = new Date().toDateString();
-                const localIN = attendanceRecords.some(r => 
-                    r.studentId === student.id && r.type === 'IN' && r.date === today
-                );
-                const localOUT = attendanceRecords.some(r => 
-                    r.studentId === student.id && r.type === 'OUT' && r.date === today
-                );
-                
-                if (localIN && localOUT) {
-                    statusBadge.textContent = '✅ Complete (from local)';
-                    statusBadge.className = 'status-badge complete';
-                    btnIn.disabled = true;
-                    btnOut.disabled = true;
-                } else if (localIN) {
-                    statusBadge.textContent = '🟡 IN (from local) — Ready for OUT';
-                    statusBadge.className = 'status-badge pending';
-                    btnIn.disabled = true;
-                    btnOut.disabled = false;
-                }
             }
         }).catch(error => {
             console.error("Status check error:", error);
@@ -516,7 +525,6 @@
         console.log("QR Scanned:", decodedText);
         updateDebug(decodedText, 'Searching...', '');
         
-        // The QR code contains just the student ID (e.g., "SIS-001")
         const student = students.find(s => s.id === decodedText);
         
         if (student) {
@@ -525,7 +533,6 @@
             showStudentInfo(student);
             showToast(`📸 Scanned: ${student.name}`, 'info');
         } else {
-            // Try to parse as JSON (backward compatibility)
             try {
                 const data = JSON.parse(decodedText);
                 if (data.type === 'attendance' && data.studentId) {
@@ -537,9 +544,7 @@
                         return;
                     }
                 }
-            } catch (e) {
-                // Not JSON, continue
-            }
+            } catch (e) {}
             
             updateDebug(decodedText, 'NOT FOUND', '');
             showToast(`❌ Student ID "${decodedText}" not found`, 'error');
@@ -681,6 +686,7 @@
         showToast(debugMode ? 'Debug mode ON' : 'Debug mode OFF', 'info');
     });
     refreshStatusBtn.addEventListener('click', refreshStatus);
+    testApiBtn.addEventListener('click', testApiConnection);
     
     btnIn.addEventListener('click', () => { if (selectedStudent) recordAttendance(selectedStudent.id, 'IN'); });
     btnOut.addEventListener('click', () => { if (selectedStudent) recordAttendance(selectedStudent.id, 'OUT'); });
