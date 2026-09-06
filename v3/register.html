@@ -1,0 +1,1053 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Registration | Sapporo International School</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Inter", sans-serif;
+      }
+
+      :root {
+        --sis-green: #0b7b3e;
+        --sis-green-light: #e8f5ee;
+        --sis-green-dark: #06582b;
+        --sis-gold: #c9a84c;
+        --sis-gold-light: #f5edd6;
+      }
+
+      body {
+        background: #f5f7f6;
+        min-height: 100vh;
+        padding: 30px 20px;
+      }
+
+      .container {
+        max-width: 520px;
+        margin: 0 auto;
+      }
+
+      /* Header */
+      .header {
+        background: var(--sis-green);
+        color: white;
+        padding: 30px 25px;
+        border-radius: 24px 24px 0 0;
+        text-align: center;
+      }
+
+      .header .logo {
+        font-size: 1.8rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+
+      .header .logo i {
+        color: var(--sis-gold);
+      }
+
+      .header .subtitle {
+        font-size: 0.85rem;
+        opacity: 0.85;
+        margin-top: 4px;
+      }
+
+      /* Card */
+      .card {
+        background: white;
+        border-radius: 0 0 24px 24px;
+        padding: 28px 24px 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        margin-bottom: 20px;
+      }
+
+      .card-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--sis-green-dark);
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .card-title i {
+        color: var(--sis-gold);
+      }
+
+      /* Form */
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      .form-group label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #2d3748;
+        margin-bottom: 5px;
+      }
+
+      .form-group label .required {
+        color: #e74c3c;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        outline: none;
+        background: #fafcff;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        border-color: var(--sis-green);
+        box-shadow: 0 0 0 3px rgba(11, 123, 62, 0.1);
+        background: white;
+      }
+
+      .form-group input::placeholder {
+        color: #a0aec0;
+      }
+
+      .form-row {
+        display: flex;
+        gap: 16px;
+      }
+
+      .form-row .form-group {
+        flex: 1;
+      }
+
+      /* Buttons */
+      .btn {
+        padding: 14px 24px;
+        border: none;
+        border-radius: 40px;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+      }
+
+      .btn-primary {
+        background: var(--sis-green);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: var(--sis-green-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(11, 123, 62, 0.3);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-secondary {
+        background: #f0f2f5;
+        color: #4a5568;
+        border: 2px solid #e2e8f0;
+      }
+
+      .btn-secondary:hover {
+        background: #e2e8f0;
+      }
+
+      .btn-success {
+        background: var(--sis-green);
+        color: white;
+      }
+
+      .btn-success:hover {
+        background: var(--sis-green-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(11, 123, 62, 0.3);
+      }
+
+      .btn-gold {
+        background: var(--sis-gold);
+        color: white;
+      }
+
+      .btn-gold:hover {
+        background: #b8963a;
+        transform: translateY(-2px);
+      }
+
+      .btn-sm {
+        padding: 8px 16px;
+        font-size: 0.8rem;
+        width: auto;
+      }
+
+      /* QR Section */
+      .qr-section {
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 2px solid #f0f2f5;
+        text-align: center;
+      }
+
+      .qr-section h4 {
+        color: var(--sis-green-dark);
+        margin-bottom: 12px;
+        font-size: 0.95rem;
+      }
+
+      #qrcodeCanvas {
+        display: flex;
+        justify-content: center;
+        margin: 12px 0;
+        padding: 16px;
+        background: white;
+        border-radius: 16px;
+        border: 2px dashed #e2e8f0;
+      }
+
+      .qr-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .qr-actions .btn {
+        flex: 1;
+        padding: 10px;
+        font-size: 0.85rem;
+      }
+
+      /* Student List */
+      .student-list-section {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 2px solid #f0f2f5;
+      }
+
+      .student-list-section .list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .student-list-section .list-header h4 {
+        color: var(--sis-green-dark);
+        font-size: 0.95rem;
+      }
+
+      .student-list-section .list-header .count {
+        background: var(--sis-green-light);
+        color: var(--sis-green);
+        padding: 2px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .student-list {
+        max-height: 280px;
+        overflow-y: auto;
+      }
+
+      .student-list::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .student-list::-webkit-scrollbar-track {
+        background: #f0f2f5;
+        border-radius: 10px;
+      }
+
+      .student-list::-webkit-scrollbar-thumb {
+        background: var(--sis-green);
+        border-radius: 10px;
+      }
+
+      .student-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 14px;
+        background: #f8fafc;
+        border-radius: 12px;
+        margin-bottom: 6px;
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+
+      .student-item:hover {
+        background: var(--sis-green-light);
+      }
+
+      .student-item.selected {
+        background: var(--sis-green-light);
+        border-left: 4px solid var(--sis-green);
+      }
+
+      .student-item .info .name {
+        font-weight: 600;
+        color: #2d3748;
+      }
+
+      .student-item .info .details {
+        font-size: 0.75rem;
+        color: #718096;
+      }
+
+      .student-item .actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .student-item .actions button {
+        background: none;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: 0.2s;
+      }
+
+      .student-item .actions .edit-btn {
+        color: var(--sis-green);
+        background: var(--sis-green-light);
+      }
+
+      .student-item .actions .edit-btn:hover {
+        background: var(--sis-green);
+        color: white;
+      }
+
+      .student-item .actions .delete-btn {
+        color: #e74c3c;
+        background: #fde8e8;
+      }
+
+      .student-item .actions .delete-btn:hover {
+        background: #e74c3c;
+        color: white;
+      }
+
+      .empty-state {
+        text-align: center;
+        color: #a0aec0;
+        padding: 30px 20px;
+      }
+
+      .empty-state i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 10px;
+        opacity: 0.5;
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 14px 28px;
+        border-radius: 40px;
+        color: white;
+        font-weight: 600;
+        font-size: 0.95rem;
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 1000;
+        max-width: 90%;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        pointer-events: none;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      .toast.success {
+        background: var(--sis-green);
+      }
+
+      .toast.error {
+        background: #e74c3c;
+      }
+
+      .toast.info {
+        background: #3498db;
+      }
+
+      /* Loading Overlay */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 999;
+        backdrop-filter: blur(4px);
+      }
+
+      .loading-overlay.show {
+        display: flex;
+      }
+
+      .loading-box {
+        background: white;
+        padding: 30px 40px;
+        border-radius: 24px;
+        text-align: center;
+      }
+
+      .loading-box .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e2e8f0;
+        border-top: 4px solid var(--sis-green);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 15px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-box p {
+        color: #4a5568;
+        font-weight: 500;
+      }
+
+      /* Responsive */
+      @media (max-width: 500px) {
+        .header {
+          padding: 20px;
+        }
+        .header .logo {
+          font-size: 1.5rem;
+        }
+        .card {
+          padding: 20px 16px;
+        }
+        .form-row {
+          flex-direction: column;
+          gap: 0;
+        }
+        .qr-actions {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="logo"><i class="fas fa-tree"></i> SIS Registration</div>
+        <div class="subtitle">
+          Sapporo International School · Student Management
+        </div>
+      </div>
+
+      <!-- Main Card -->
+      <div class="card">
+        <div class="card-title">
+          <i class="fas fa-user-plus"></i> Register New Student
+        </div>
+
+        <form id="registrationForm" autocomplete="off">
+          <!-- Student ID -->
+          <div class="form-group">
+            <label>Student ID <span class="required">*</span></label>
+            <input
+              type="text"
+              id="studentId"
+              placeholder="e.g., SIS-001"
+              required
+            />
+          </div>
+
+          <!-- Name -->
+          <div class="form-group">
+            <label>Full Name <span class="required">*</span></label>
+            <input
+              type="text"
+              id="studentName"
+              placeholder="e.g., Yuki Tanaka"
+              required
+            />
+          </div>
+
+          <!-- Grade & Email Row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label>Grade <span class="required">*</span></label>
+              <select id="studentGrade" required>
+                <option value="">Select Grade</option>
+                <option value="Grade 1">Grade 1</option>
+                <option value="Grade 2">Grade 2</option>
+                <option value="Grade 3">Grade 3</option>
+                <option value="Grade 4">Grade 4</option>
+                <option value="Grade 5">Grade 5</option>
+                <option value="Grade 6">Grade 6</option>
+                <option value="Grade 7">Grade 7</option>
+                <option value="Grade 8">Grade 8</option>
+                <option value="Grade 9">Grade 9</option>
+                <option value="Grade 10">Grade 10</option>
+                <option value="Grade 11">Grade 11</option>
+                <option value="Grade 12">Grade 12</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Email <span class="required">*</span></label>
+              <input
+                type="email"
+                id="studentEmail"
+                placeholder="student@sis.edu"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Phone -->
+          <div class="form-group">
+            <label>Phone Number</label>
+            <input
+              type="tel"
+              id="studentPhone"
+              placeholder="e.g., 090-1234-5678"
+            />
+          </div>
+
+          <!-- Buttons -->
+          <div style="display: flex; gap: 12px; margin-top: 4px">
+            <button type="submit" id="registerBtn" class="btn btn-primary">
+              <i class="fas fa-save"></i> Register Student
+            </button>
+            <button type="button" id="clearBtn" class="btn btn-secondary">
+              <i class="fas fa-eraser"></i> Clear
+            </button>
+          </div>
+        </form>
+
+        <!-- QR Section -->
+        <div class="qr-section">
+          <h4><i class="fas fa-qrcode"></i> Generate QR Code</h4>
+          <p style="font-size: 0.8rem; color: #718096; margin-bottom: 12px">
+            Select a student from the list below to generate their QR code
+          </p>
+          <div id="qrcodeCanvas"></div>
+          <div class="qr-actions">
+            <button id="generateQrBtn" class="btn btn-gold btn-sm">
+              <i class="fas fa-sync-alt"></i> Generate QR
+            </button>
+            <button
+              id="downloadQrBtn"
+              class="btn btn-primary btn-sm"
+              style="background: #3498db"
+            >
+              <i class="fas fa-download"></i> Download QR
+            </button>
+          </div>
+        </div>
+
+        <!-- Student List -->
+        <div class="student-list-section">
+          <div class="list-header">
+            <h4><i class="fas fa-users"></i> Registered Students</h4>
+            <span class="count" id="studentCount">0</span>
+          </div>
+          <div id="studentList" class="student-list">
+            <div class="empty-state">
+              <i class="fas fa-user-plus"></i>
+              <p>
+                No students registered yet.<br />Add your first student above!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-box">
+        <div class="spinner"></div>
+        <p id="loadingMessage">Processing...</p>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+      // ============================================
+      // CONFIGURATION
+      // ============================================
+      const GOOGLE_SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbygLumG86lhFRecOUw4M__-DzpRQYBoPV-phFXzeYNoMjzZDo9OzWrCxDVRQ1b_9PsGHg/exec";
+
+      // ============================================
+      // STATE
+      // ============================================
+      let students = [];
+      let selectedStudentId = null;
+      let isSubmitting = false;
+
+      // ============================================
+      // DOM REFS
+      // ============================================
+      const $ = (id) => document.getElementById(id);
+      const toast = $("toast");
+      const loadingOverlay = $("loadingOverlay");
+      const loadingMessage = $("loadingMessage");
+      const studentId = $("studentId");
+      const studentName = $("studentName");
+      const studentGrade = $("studentGrade");
+      const studentEmail = $("studentEmail");
+      const studentPhone = $("studentPhone");
+      const registerBtn = $("registerBtn");
+      const clearBtn = $("clearBtn");
+      const studentList = $("studentList");
+      const studentCount = $("studentCount");
+      const qrcodeCanvas = $("qrcodeCanvas");
+      const generateQrBtn = $("generateQrBtn");
+      const downloadQrBtn = $("downloadQrBtn");
+      const form = $("registrationForm");
+
+      // ============================================
+      // TOAST SYSTEM
+      // ============================================
+      function showToast(message, type = "success") {
+        toast.textContent = message;
+        toast.className = "toast " + type + " show";
+        clearTimeout(toast._timeout);
+        toast._timeout = setTimeout(() => {
+          toast.classList.remove("show");
+        }, 3000);
+      }
+
+      // ============================================
+      // LOADING SYSTEM
+      // ============================================
+      function showLoading(message) {
+        loadingMessage.textContent = message;
+        loadingOverlay.classList.add("show");
+      }
+
+      function hideLoading() {
+        loadingOverlay.classList.remove("show");
+      }
+
+      // ============================================
+      // API CALLS
+      // ============================================
+      async function apiCall(action, params = {}) {
+        let url = `${GOOGLE_SCRIPT_URL}?action=${action}&t=${Date.now()}`;
+        for (const [key, value] of Object.entries(params)) {
+          url += `&${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+        }
+
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
+          return data;
+        } catch (error) {
+          console.error("API Error:", error);
+          return { status: "error", message: error.message };
+        }
+      }
+
+      // ============================================
+      // LOAD STUDENTS
+      // ============================================
+      async function loadStudents() {
+        const result = await apiCall("getStudents");
+        if (result.status === "success" && result.students) {
+          students = result.students;
+          renderStudentList();
+          return true;
+        }
+
+        // Try cache
+        const cached = localStorage.getItem("sis_students");
+        if (cached) {
+          students = JSON.parse(cached);
+          renderStudentList();
+          return true;
+        }
+
+        return false;
+      }
+
+      // ============================================
+      // RENDER STUDENT LIST
+      // ============================================
+      function renderStudentList() {
+        if (students.length === 0) {
+          studentList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-user-plus"></i>
+                    <p>No students registered yet.<br>Add your first student above!</p>
+                </div>
+            `;
+          studentCount.textContent = "0";
+          return;
+        }
+
+        studentList.innerHTML = students
+          .map(
+            (s) => `
+            <div class="student-item ${selectedStudentId === s.id ? "selected" : ""}" data-id="${s.id}">
+                <div class="info">
+                    <div class="name">${escapeHtml(s.name)}</div>
+                    <div class="details">${s.id} · ${s.grade} · ${s.email}</div>
+                </div>
+                <div class="actions">
+                    <button class="edit-btn" data-id="${s.id}" title="Edit Student">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="delete-btn" data-id="${s.id}" title="Delete Student">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        `,
+          )
+          .join("");
+
+        studentCount.textContent = students.length;
+
+        // Event listeners for student items
+        document.querySelectorAll(".student-item").forEach((el) => {
+          const id = el.dataset.id;
+
+          // Click to select
+          el.addEventListener("click", (e) => {
+            if (
+              e.target.closest(".edit-btn") ||
+              e.target.closest(".delete-btn")
+            )
+              return;
+            selectedStudentId = id;
+            renderStudentList();
+            const student = students.find((s) => s.id === id);
+            if (student) {
+              fillForm(student);
+              generateQR(id);
+              showToast(`Selected: ${student.name}`, "info");
+            }
+          });
+
+          // Edit button
+          const editBtn = el.querySelector(".edit-btn");
+          if (editBtn) {
+            editBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              const student = students.find((s) => s.id === id);
+              if (student) {
+                fillForm(student);
+                selectedStudentId = id;
+                renderStudentList();
+                showToast(`Editing: ${student.name}`, "info");
+              }
+            });
+          }
+
+          // Delete button
+          const deleteBtn = el.querySelector(".delete-btn");
+          if (deleteBtn) {
+            deleteBtn.addEventListener("click", async (e) => {
+              e.stopPropagation();
+              const student = students.find((s) => s.id === id);
+              if (
+                student &&
+                confirm(`Delete ${student.name}? This cannot be undone.`)
+              ) {
+                await deleteStudent(id);
+              }
+            });
+          }
+        });
+      }
+
+      // ============================================
+      // FORM FUNCTIONS
+      // ============================================
+      function fillForm(student) {
+        studentId.value = student.id;
+        studentName.value = student.name;
+        studentGrade.value = student.grade;
+        studentEmail.value = student.email;
+        studentPhone.value = student.phone || "";
+      }
+
+      function clearForm() {
+        studentId.value = "";
+        studentName.value = "";
+        studentGrade.value = "";
+        studentEmail.value = "";
+        studentPhone.value = "";
+        selectedStudentId = null;
+        renderStudentList();
+        qrcodeCanvas.innerHTML = "";
+        showToast("Form cleared", "info");
+      }
+
+      function getFormData() {
+        return {
+          id: studentId.value.trim(),
+          name: studentName.value.trim(),
+          grade: studentGrade.value,
+          email: studentEmail.value.trim(),
+          phone: studentPhone.value.trim(),
+        };
+      }
+
+      function validateForm(data) {
+        if (!data.id) {
+          showToast("Student ID is required", "error");
+          return false;
+        }
+        if (!data.name) {
+          showToast("Student Name is required", "error");
+          return false;
+        }
+        if (!data.grade) {
+          showToast("Grade is required", "error");
+          return false;
+        }
+        if (!data.email) {
+          showToast("Email is required", "error");
+          return false;
+        }
+        if (!data.email.includes("@")) {
+          showToast("Please enter a valid email", "error");
+          return false;
+        }
+        return true;
+      }
+
+      // ============================================
+      // REGISTER STUDENT
+      // ============================================
+      async function registerStudent() {
+        if (isSubmitting) return;
+
+        const data = getFormData();
+        if (!validateForm(data)) return;
+
+        isSubmitting = true;
+        registerBtn.disabled = true;
+        registerBtn.innerHTML =
+          '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        showLoading("Registering student...");
+
+        try {
+          const result = await apiCall("register", {
+            studentId: data.id,
+            studentName: data.name,
+            grade: data.grade,
+            email: data.email,
+            phone: data.phone || "",
+          });
+
+          if (result.status === "success") {
+            showToast(`✅ ${data.name} registered successfully!`, "success");
+            await loadStudents();
+            clearForm();
+            // Select the newly added student
+            const newStudent = students.find((s) => s.id === data.id);
+            if (newStudent) {
+              selectedStudentId = newStudent.id;
+              renderStudentList();
+              generateQR(newStudent.id);
+            }
+          } else {
+            showToast(`❌ ${result.message}`, "error");
+          }
+        } catch (error) {
+          showToast(`❌ Error: ${error.message}`, "error");
+        } finally {
+          isSubmitting = false;
+          registerBtn.disabled = false;
+          registerBtn.innerHTML =
+            '<i class="fas fa-save"></i> Register Student';
+          hideLoading();
+        }
+      }
+
+      // ============================================
+      // DELETE STUDENT
+      // ============================================
+      async function deleteStudent(studentId) {
+        showLoading("Deleting student...");
+
+        try {
+          const result = await apiCall("delete", { studentId });
+
+          if (result.status === "success") {
+            showToast("✅ Student deleted successfully", "success");
+            await loadStudents();
+            if (selectedStudentId === studentId) {
+              selectedStudentId = null;
+              clearForm();
+            }
+            qrcodeCanvas.innerHTML = "";
+          } else {
+            showToast(`❌ ${result.message}`, "error");
+          }
+        } catch (error) {
+          showToast(`❌ Error: ${error.message}`, "error");
+        } finally {
+          hideLoading();
+        }
+      }
+
+      // ============================================
+      // QR CODE
+      // ============================================
+      function generateQR(studentId) {
+        const student = students.find((s) => s.id === studentId);
+        if (!student) {
+          qrcodeCanvas.innerHTML =
+            '<div style="color:#a0aec0; padding:20px;">Select a student to generate QR</div>';
+          return;
+        }
+
+        const payload = JSON.stringify({
+          type: "attendance",
+          studentId: student.id,
+          name: student.name,
+          grade: student.grade,
+          email: student.email,
+          phone: student.phone,
+        });
+
+        qrcodeCanvas.innerHTML = "";
+        new QRCode(qrcodeCanvas, {
+          text: payload,
+          width: 180,
+          height: 180,
+          colorDark: "#0b7b3e",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+
+        showToast(`QR generated for ${student.name}`, "success");
+      }
+
+      function downloadQR() {
+        const canvas = qrcodeCanvas.querySelector("canvas");
+        if (!canvas) {
+          showToast("Generate QR code first", "error");
+          return;
+        }
+
+        const student = students.find((s) => s.id === selectedStudentId);
+        const link = document.createElement("a");
+        link.download = `QR_${student?.id || "student"}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+        showToast("QR Code downloaded", "success");
+      }
+
+      // ============================================
+      // UTILITY
+      // ============================================
+      function escapeHtml(str) {
+        if (!str) return "";
+        return String(str).replace(
+          /[&<>]/g,
+          (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m],
+        );
+      }
+
+      // ============================================
+      // CHECK CONFIG
+      // ============================================
+      function checkConfig() {
+        if (
+          GOOGLE_SCRIPT_URL ===
+          "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+        ) {
+          showToast("⚠️ Please configure GOOGLE_SCRIPT_URL", "error");
+          return false;
+        }
+        return true;
+      }
+
+      // ============================================
+      // EVENT LISTENERS
+      // ============================================
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        registerStudent();
+      });
+
+      clearBtn.addEventListener("click", clearForm);
+
+      generateQrBtn.addEventListener("click", () => {
+        if (!selectedStudentId) {
+          showToast("Please select a student first", "error");
+          return;
+        }
+        generateQR(selectedStudentId);
+      });
+
+      downloadQrBtn.addEventListener("click", downloadQR);
+
+      // ============================================
+      // INIT
+      // ============================================
+      async function init() {
+        showLoading("Loading students...");
+        await loadStudents();
+        hideLoading();
+
+        if (students.length > 0) {
+          showToast(`✅ ${students.length} students loaded`, "success");
+        }
+      }
+
+      if (checkConfig()) {
+        init();
+      }
+    </script>
+  </body>
+</html>
