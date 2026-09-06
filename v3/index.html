@@ -73,13 +73,16 @@
         .loading-box { background: white; padding: 30px 40px; border-radius: 24px; text-align: center; }
         .loading-box .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid var(--sis-green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
         .loading-box p { color: #4a5568; font-weight: 500; }
+        .debug-panel { background: #f8fafc; border-radius: 12px; padding: 10px; margin-top: 10px; font-size: 0.7rem; color: #4a5568; display: none; border: 1px solid #e2e8f0; }
+        .debug-panel.show { display: block; }
+        .debug-panel .label { font-weight: 600; color: #2d3748; }
         @media (max-width: 500px) { .header { padding: 20px; } .header .logo { font-size: 1.5rem; } .card { padding: 18px 16px; } .action-buttons .btn { font-size: 0.9rem; padding: 12px; } }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div class="logo">SIS Attendance</div>
+        <div class="logo"><i class="fas fa-tree"></i> SIS Attendance</div>
         <div class="subtitle">Sapporo International School</div>
     </div>
     
@@ -133,6 +136,16 @@
                 <div class="empty-records">No records yet today</div>
             </div>
         </div>
+        
+        <!-- Debug Panel -->
+        <div class="debug-panel" id="debugPanel">
+            <div><span class="label">Last Scan:</span> <span id="debugLastScan">—</span></div>
+            <div><span class="label">Found Student:</span> <span id="debugFoundStudent">—</span></div>
+            <div><span class="label">Status Check:</span> <span id="debugStatusCheck">—</span></div>
+        </div>
+        <button id="toggleDebugBtn" style="margin-top:10px; background:none; border:none; color:#718096; font-size:0.7rem; cursor:pointer;">
+            <i class="fas fa-bug"></i> Toggle Debug
+        </button>
     </div>
 </div>
 
@@ -142,7 +155,7 @@
 <div id="toast" class="toast"></div>
 
 <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygLumG86lhFRecOUw4M__-DzpRQYBoPV-phFXzeYNoMjzZDo9OzWrCxDVRQ1b_9PsGHg/exec";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
     
     let students = [];
     let attendanceRecords = [];
@@ -151,6 +164,7 @@
     let scanner = null;
     let isScanning = false;
     let currentCamera = "environment";
+    let debugMode = false;
     
     const $ = id => document.getElementById(id);
     const toast = $('toast');
@@ -166,6 +180,10 @@
     const manualPanel = $('manualPanel');
     const manualStudentId = $('manualStudentId');
     const reader = $('reader');
+    const debugPanel = $('debugPanel');
+    const debugLastScan = $('debugLastScan');
+    const debugFoundStudent = $('debugFoundStudent');
+    const debugStatusCheck = $('debugStatusCheck');
     
     function showToast(message, type = 'success') {
         toast.textContent = message;
@@ -176,6 +194,15 @@
     
     function showLoading(message) { loadingMessage.textContent = message; loadingOverlay.classList.add('show'); }
     function hideLoading() { loadingOverlay.classList.remove('show'); }
+    
+    function updateDebug(scan, student, status) {
+        if (debugMode) {
+            debugPanel.classList.add('show');
+            debugLastScan.textContent = scan || '—';
+            debugFoundStudent.textContent = student || '—';
+            debugStatusCheck.textContent = status || '—';
+        }
+    }
     
     async function apiCall(action, params = {}) {
         let url = `${GOOGLE_SCRIPT_URL}?action=${action}&t=${Date.now()}`;
@@ -197,15 +224,18 @@
         if (result.status === 'success' && result.students) {
             students = result.students;
             localStorage.setItem('sis_students', JSON.stringify(students));
+            console.log("Students loaded:", students.map(s => s.id));
             return true;
         }
         const cached = localStorage.getItem('sis_students');
-        if (cached) { students = JSON.parse(cached); return true; }
+        if (cached) { students = JSON.parse(cached); console.log("Students from cache:", students.map(s => s.id)); return true; }
         return false;
     }
     
     async function checkStatus(studentId) {
+        console.log("Checking status for:", studentId);
         const result = await apiCall('checkStatus', { studentId });
+        console.log("Status response:", result);
         return result;
     }
     
@@ -288,14 +318,15 @@
         
         // Check status from server
         checkStatus(student.id).then(status => {
-            console.log("Status response:", status);
+            console.log("Status response for", student.id, ":", status);
             
             if (status.status === 'success') {
-                // FIX: Check both hasIN and hasOUT flags from server
                 const hasIN = status.hasIN || false;
                 const hasOUT = status.hasOUT || false;
                 const inTime = status.inTime || null;
                 const outTime = status.outTime || null;
+                
+                updateDebug(student.id, student.name, `IN:${hasIN} OUT:${hasOUT}`);
                 
                 if (hasIN && hasOUT) {
                     statusBadge.textContent = `✅ Complete (IN: ${inTime} | OUT: ${outTime})`;
@@ -316,12 +347,14 @@
             } else {
                 statusBadge.textContent = '❌ Error checking status';
                 statusBadge.className = 'status-badge out';
+                updateDebug(student.id, student.name, 'ERROR: ' + status.message);
                 showToast('Error checking student status', 'error');
             }
         }).catch(error => {
             console.error("Status check error:", error);
             statusBadge.textContent = '❌ Connection error';
             statusBadge.className = 'status-badge out';
+            updateDebug(student.id, student.name, 'ERROR: ' + error.message);
             showToast('Network error checking status', 'error');
         });
     }
@@ -334,16 +367,19 @@
     }
     
     // ============================================
-    // QR SCAN HANDLER - FIXED TO READ STUDENT ID
+    // QR SCAN HANDLER - FIXED
     // ============================================
     function handleQRScan(decodedText) {
         console.log("QR Scanned:", decodedText);
+        updateDebug(decodedText, 'Searching...', '');
         
         // The QR code now contains just the student ID (e.g., "SIS-001")
         // Find the student by ID
         const student = students.find(s => s.id === decodedText);
         
         if (student) {
+            console.log("Found student:", student);
+            updateDebug(decodedText, student.name + ' (' + student.id + ')', 'Found');
             showStudentInfo(student);
             showToast(`📸 Scanned: ${student.name}`, 'info');
         } else {
@@ -353,6 +389,7 @@
                 if (data.type === 'attendance' && data.studentId) {
                     const foundStudent = students.find(s => s.id === data.studentId);
                     if (foundStudent) {
+                        updateDebug(decodedText, foundStudent.name + ' (' + foundStudent.id + ')', 'Found via JSON');
                         showStudentInfo(foundStudent);
                         showToast(`📸 Scanned: ${foundStudent.name}`, 'info');
                         return;
@@ -361,7 +398,16 @@
             } catch (e) {
                 // Not JSON, continue
             }
+            
+            updateDebug(decodedText, 'NOT FOUND', '');
             showToast(`❌ Student ID "${decodedText}" not found`, 'error');
+            
+            // Show list of available student IDs for debugging
+            const ids = students.map(s => s.id).join(', ');
+            console.log("Available student IDs:", ids);
+            if (debugMode) {
+                showToast(`Available IDs: ${ids}`, 'info');
+            }
         }
     }
     
@@ -493,6 +539,11 @@
         renderRecords();
         showToast('Records cleared', 'info');
     });
+    document.getElementById('toggleDebugBtn').addEventListener('click', () => {
+        debugMode = !debugMode;
+        debugPanel.classList.toggle('show');
+        showToast(debugMode ? 'Debug mode ON' : 'Debug mode OFF', 'info');
+    });
     
     btnIn.addEventListener('click', () => { if (selectedStudent) recordAttendance(selectedStudent.id, 'IN'); });
     btnOut.addEventListener('click', () => { if (selectedStudent) recordAttendance(selectedStudent.id, 'OUT'); });
@@ -512,6 +563,7 @@
         if (students.length === 0) {
             showToast('⚠️ No students found. Please register students first.', 'error');
         } else {
+            console.log("Available student IDs:", students.map(s => s.id));
             showToast(`✅ ${students.length} students loaded`, 'success');
         }
     }
