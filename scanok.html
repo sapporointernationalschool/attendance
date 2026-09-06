@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>QR Attendance | Sapporo International School</title>
+    <title>QR Attendance | IN/OUT with Server Sync</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -112,6 +112,8 @@
         .status-value { color: #2c5364; }
         .status-value.present { color: #2ecc71; }
         .status-value.absent { color: #e74c3c; }
+        .refresh-status-btn { background: #3498db; color: white; border: none; padding: 5px 15px; border-radius: 20px; cursor: pointer; font-size: 0.7rem; margin-top: 5px; }
+        .refresh-status-btn:hover { opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -211,6 +213,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3><i class="fas fa-qrcode"></i> Record Attendance</h3>
+            <button id="refreshStatusBtn" class="refresh-status-btn"><i class="fas fa-sync-alt"></i> Refresh Status</button>
         </div>
         <div class="modal-body">
             <div id="modalStudentInfo" class="student-info-modal">
@@ -345,8 +348,10 @@
     async function checkStudentStatus(studentId) {
         try {
             const url = `${GOOGLE_SCRIPT_URL}?action=checkStatus&studentId=${encodeURIComponent(studentId)}&t=${Date.now()}`;
+            console.log("Checking status:", url);
             const response = await fetch(url);
             const data = await response.json();
+            console.log("Status response:", data);
             return data;
         } catch (error) {
             console.error("Error checking status:", error);
@@ -535,6 +540,74 @@
         }
     }
     
+    // ============ SYNC LOCAL WITH SERVER ============
+    async function syncLocalWithServer(studentId) {
+        try {
+            const status = await checkStudentStatus(studentId);
+            if (status.status === "success") {
+                const today = new Date().toDateString();
+                
+                // Remove existing records for today
+                attendanceRecords = attendanceRecords.filter(r => 
+                    !(r.studentId === studentId && new Date(r.timestamp).toDateString() === today)
+                );
+                
+                // If has IN, add it to local records
+                if (status.hasIN && status.inTime) {
+                    // Create a timestamp from the date and time
+                    const now = new Date();
+                    const dateStr = now.toISOString().split('T')[0];
+                    const timeStr = status.inTime;
+                    const timestamp = new Date(`${dateStr}T${timeStr}`).toISOString();
+                    
+                    const student = students.find(s => s.id === studentId);
+                    if (student) {
+                        attendanceRecords.push({
+                            studentId: student.id,
+                            studentName: student.name,
+                            grade: student.grade,
+                            email: student.email,
+                            phone: student.phone,
+                            timestamp: timestamp,
+                            type: 'IN',
+                            source: 'sync'
+                        });
+                    }
+                }
+                
+                // If has OUT, add it to local records
+                if (status.hasOUT && status.outTime) {
+                    const now = new Date();
+                    const dateStr = now.toISOString().split('T')[0];
+                    const timeStr = status.outTime;
+                    const timestamp = new Date(`${dateStr}T${timeStr}`).toISOString();
+                    
+                    const student = students.find(s => s.id === studentId);
+                    if (student) {
+                        attendanceRecords.push({
+                            studentId: student.id,
+                            studentName: student.name,
+                            grade: student.grade,
+                            email: student.email,
+                            phone: student.phone,
+                            timestamp: timestamp,
+                            type: 'OUT',
+                            source: 'sync'
+                        });
+                    }
+                }
+                
+                saveAttendanceLocal();
+                console.log("Local records synced with server");
+                return status;
+            }
+            return status;
+        } catch (error) {
+            console.error("Sync error:", error);
+            return { status: "error", message: error.message };
+        }
+    }
+    
     // ============ PROCESS ATTENDANCE ============
     async function processAttendance(student, type) {
         if (isProcessing) {
@@ -548,9 +621,9 @@
         showLoading(`Processing ${type} for ${student.name}...`);
         
         try {
-            // Check current status from server
-            const status = await checkStudentStatus(student.id);
-            console.log("Server status:", status);
+            // FIRST: Sync local with server to get latest status
+            const status = await syncLocalWithServer(student.id);
+            console.log("Synced status:", status);
             
             if (status.status === "error") {
                 showError("Failed to check status: " + status.message);
@@ -571,6 +644,8 @@
                 if (hasIN) {
                     showError(`❌ ${student.name} already checked IN today at ${inTime}!`);
                     showToast(`❌ Already checked IN at ${inTime}`, true);
+                    // Update modal with latest status
+                    updateStatusDisplay(status);
                     isProcessing = false;
                     document.getElementById('modalInBtn').disabled = false;
                     document.getElementById('modalOutBtn').disabled = false;
@@ -583,6 +658,8 @@
                 if (!hasIN) {
                     showError(`❌ ${student.name} hasn't checked IN today! Please check IN first.`);
                     showToast(`❌ No IN record found for today`, true);
+                    // Update modal with latest status
+                    updateStatusDisplay(status);
                     isProcessing = false;
                     document.getElementById('modalInBtn').disabled = false;
                     document.getElementById('modalOutBtn').disabled = false;
@@ -592,6 +669,7 @@
                 if (hasOUT) {
                     showError(`❌ ${student.name} already checked OUT today at ${outTime}!`);
                     showToast(`❌ Already checked OUT at ${outTime}`, true);
+                    updateStatusDisplay(status);
                     isProcessing = false;
                     document.getElementById('modalInBtn').disabled = false;
                     document.getElementById('modalOutBtn').disabled = false;
@@ -613,43 +691,8 @@
                 return false;
             }
             
-            // Add to local records
-            const record = {
-                studentId: student.id,
-                studentName: student.name,
-                grade: student.grade,
-                email: student.email,
-                phone: student.phone,
-                timestamp: new Date().toISOString(),
-                type: type,
-                source: "qr_scan"
-            };
-            
-            // Remove any existing records for today to avoid duplicates
-            const today = new Date().toDateString();
-            if (type === 'IN') {
-                const existingINIndex = attendanceRecords.findIndex(r => 
-                    r.studentId === student.id && 
-                    r.type === 'IN' && 
-                    new Date(r.timestamp).toDateString() === today
-                );
-                if (existingINIndex !== -1) {
-                    attendanceRecords.splice(existingINIndex, 1);
-                }
-            }
-            if (type === 'OUT') {
-                const existingOUTIndex = attendanceRecords.findIndex(r => 
-                    r.studentId === student.id && 
-                    r.type === 'OUT' && 
-                    new Date(r.timestamp).toDateString() === today
-                );
-                if (existingOUTIndex !== -1) {
-                    attendanceRecords.splice(existingOUTIndex, 1);
-                }
-            }
-            
-            attendanceRecords.unshift(record);
-            saveAttendanceLocal();
+            // Re-sync after successful save
+            await syncLocalWithServer(student.id);
             
             const actionText = type === 'IN' ? 'checked IN' : 'checked OUT';
             let statusMessage = '';
@@ -674,8 +717,9 @@
                 Last: ${student.name} ${type === 'IN' ? 'IN' : 'OUT'} at ${new Date().toLocaleTimeString()}${statusMessage}
             `;
             
-            // Update modal status
-            updateModalStatus(student.id);
+            // Get fresh status and update modal
+            const freshStatus = await checkStudentStatus(student.id);
+            updateStatusDisplay(freshStatus);
             
             isProcessing = false;
             document.getElementById('modalInBtn').disabled = false;
@@ -696,15 +740,6 @@
     }
     
     // ============ UPDATE MODAL STATUS ============
-    async function updateModalStatus(studentId) {
-        try {
-            const status = await checkStudentStatus(studentId);
-            updateStatusDisplay(status);
-        } catch (error) {
-            console.error("Error updating status:", error);
-        }
-    }
-    
     function updateStatusDisplay(status) {
         const hasIN = status.hasIN || false;
         const hasOUT = status.hasOUT || false;
@@ -727,7 +762,7 @@
             statusMsg.innerHTML = '✅ <span style="color: #2ecc71;">Completed both IN and OUT today</span>';
             statusMsg.style.color = '#2ecc71';
         } else if (hasIN) {
-            statusMsg.innerHTML = '🟡 <span style="color: #f39c12;">Checked IN, ready for OUT</span>';
+            statusMsg.innerHTML = '🟡 <span style="color: #f39c12;">Checked IN at ' + inTime + ', ready for OUT</span>';
             statusMsg.style.color = '#f39c12';
         } else {
             statusMsg.innerHTML = '🔴 <span style="color: #e74c3c;">Not checked IN yet</span>';
@@ -790,9 +825,9 @@
         
         document.getElementById('attendanceModal').style.display = 'block';
         
-        // Check status and update
+        // Check status and update - FIRST sync with server
         try {
-            const status = await checkStudentStatus(student.id);
+            const status = await syncLocalWithServer(student.id);
             if (status.status === "success") {
                 updateStatusDisplay(status);
             } else {
@@ -805,6 +840,16 @@
             document.getElementById('statusMessage').textContent = '❌ Error checking status';
             document.getElementById('statusMessage').style.color = '#e74c3c';
             showError('Network error checking status');
+        }
+    }
+    
+    async function refreshStatus() {
+        if (pendingStudent) {
+            const status = await syncLocalWithServer(pendingStudent.id);
+            if (status.status === "success") {
+                updateStatusDisplay(status);
+                showToast("Status refreshed");
+            }
         }
     }
     
@@ -959,7 +1004,11 @@
         document.getElementById('manualStudentId').value = '';
     }
     
-    function refresh() { renderAttendanceList(); updateStats(); showToast("Refreshed"); }
+    function refresh() { 
+        renderAttendanceList(); 
+        updateStats(); 
+        showToast("Refreshed"); 
+    }
     
     function escapeHtml(str) {
         if (!str) return '';
@@ -979,6 +1028,7 @@
     document.getElementById('switchBackBtn').addEventListener('click', () => { if (currentCamera !== 'environment') switchCamera('environment'); });
     document.getElementById('switchFrontBtn').addEventListener('click', () => { if (currentCamera !== 'user') switchCamera('user'); });
     document.getElementById('restartCameraBtn').addEventListener('click', () => { showToast("Restarting camera..."); initScanner(); });
+    document.getElementById('refreshStatusBtn').addEventListener('click', refreshStatus);
     document.getElementById('modalInBtn').addEventListener('click', async () => { if (pendingStudent && !isProcessing) { await processAttendance(pendingStudent, 'IN'); } });
     document.getElementById('modalOutBtn').addEventListener('click', async () => { if (pendingStudent && !isProcessing) { await processAttendance(pendingStudent, 'OUT'); } });
     document.getElementById('modalCancelBtn').addEventListener('click', closeModal);
