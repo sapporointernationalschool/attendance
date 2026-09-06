@@ -73,16 +73,19 @@
         .loading-box { background: white; padding: 30px 40px; border-radius: 24px; text-align: center; }
         .loading-box .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid var(--sis-green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
         .loading-box p { color: #4a5568; font-weight: 500; }
-        .debug-panel { background: #f8fafc; border-radius: 12px; padding: 10px; margin-top: 10px; font-size: 0.7rem; color: #4a5568; display: none; border: 1px solid #e2e8f0; }
+        .debug-panel { background: #f8fafc; border-radius: 12px; padding: 10px; margin-top: 10px; font-size: 0.7rem; color: #4a5568; display: none; border: 1px solid #e2e8f0; max-height: 150px; overflow-y: auto; }
         .debug-panel.show { display: block; }
         .debug-panel .label { font-weight: 600; color: #2d3748; }
+        .debug-panel .debug-line { padding: 2px 0; border-bottom: 1px solid #f0f2f5; }
+        .refresh-status-btn { background: var(--sis-green); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.75rem; margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; }
+        .refresh-status-btn:hover { background: var(--sis-green-dark); }
         @media (max-width: 500px) { .header { padding: 20px; } .header .logo { font-size: 1.5rem; } .card { padding: 18px 16px; } .action-buttons .btn { font-size: 0.9rem; padding: 12px; } }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div class="logo"><i class="fas fa-tree"></i> SIS Attendance</div>
+        <div class="logo">SIS Attendance</div>
         <div class="subtitle">Sapporo International School</div>
     </div>
     
@@ -109,6 +112,7 @@
             <div class="details" id="studentDetails">ID: — | Grade: —</div>
             <div>
                 <span class="status-badge pending" id="statusBadge">⏳ Checking...</span>
+                <button id="refreshStatusBtn" class="refresh-status-btn"><i class="fas fa-sync-alt"></i> Refresh Status</button>
             </div>
         </div>
         
@@ -139,9 +143,10 @@
         
         <!-- Debug Panel -->
         <div class="debug-panel" id="debugPanel">
-            <div><span class="label">Last Scan:</span> <span id="debugLastScan">—</span></div>
-            <div><span class="label">Found Student:</span> <span id="debugFoundStudent">—</span></div>
-            <div><span class="label">Status Check:</span> <span id="debugStatusCheck">—</span></div>
+            <div class="debug-line"><span class="label">Last Scan:</span> <span id="debugLastScan">—</span></div>
+            <div class="debug-line"><span class="label">Found Student:</span> <span id="debugFoundStudent">—</span></div>
+            <div class="debug-line"><span class="label">Status Check:</span> <span id="debugStatusCheck">—</span></div>
+            <div class="debug-line"><span class="label">Local Records:</span> <span id="debugLocalRecords">—</span></div>
         </div>
         <button id="toggleDebugBtn" style="margin-top:10px; background:none; border:none; color:#718096; font-size:0.7rem; cursor:pointer;">
             <i class="fas fa-bug"></i> Toggle Debug
@@ -155,7 +160,7 @@
 <div id="toast" class="toast"></div>
 
 <script>
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygLumG86lhFRecOUw4M__-DzpRQYBoPV-phFXzeYNoMjzZDo9OzWrCxDVRQ1b_9PsGHg/exec";
     
     let students = [];
     let attendanceRecords = [];
@@ -165,6 +170,7 @@
     let isScanning = false;
     let currentCamera = "environment";
     let debugMode = false;
+    let currentStudentStatus = null;
     
     const $ = id => document.getElementById(id);
     const toast = $('toast');
@@ -184,6 +190,8 @@
     const debugLastScan = $('debugLastScan');
     const debugFoundStudent = $('debugFoundStudent');
     const debugStatusCheck = $('debugStatusCheck');
+    const debugLocalRecords = $('debugLocalRecords');
+    const refreshStatusBtn = $('refreshStatusBtn');
     
     function showToast(message, type = 'success') {
         toast.textContent = message;
@@ -198,9 +206,10 @@
     function updateDebug(scan, student, status) {
         if (debugMode) {
             debugPanel.classList.add('show');
-            debugLastScan.textContent = scan || '—';
-            debugFoundStudent.textContent = student || '—';
-            debugStatusCheck.textContent = status || '—';
+            if (scan) debugLastScan.textContent = scan;
+            if (student) debugFoundStudent.textContent = student;
+            if (status) debugStatusCheck.textContent = status;
+            debugLocalRecords.textContent = attendanceRecords.length + ' records';
         }
     }
     
@@ -212,6 +221,7 @@
         try {
             const response = await fetch(url);
             const data = await response.json();
+            console.log(`API ${action}:`, data);
             return data;
         } catch (error) {
             console.error("API Error:", error);
@@ -232,79 +242,182 @@
         return false;
     }
     
-    async function checkStatus(studentId) {
-        console.log("Checking status for:", studentId);
-        const result = await apiCall('checkStatus', { studentId });
-        console.log("Status response:", result);
-        return result;
+    // ============================================
+    // CHECK STATUS - WITH RETRY AND FALLBACK
+    // ============================================
+    async function checkStatus(studentId, retryCount = 0) {
+        console.log(`Checking status for: ${studentId} (attempt ${retryCount + 1})`);
+        try {
+            const result = await apiCall('checkStatus', { studentId });
+            console.log("Status response:", result);
+            
+            if (result.status === 'success') {
+                return result;
+            } else if (retryCount < 2) {
+                // Retry after 1 second
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return checkStatus(studentId, retryCount + 1);
+            } else {
+                return { status: 'error', message: result.message || 'Failed to check status' };
+            }
+        } catch (error) {
+            if (retryCount < 2) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return checkStatus(studentId, retryCount + 1);
+            }
+            return { status: 'error', message: error.message };
+        }
     }
     
+    // ============================================
+    // RECORD ATTENDANCE - WITH RETRY
+    // ============================================
     async function recordAttendance(studentId, type) {
         const student = students.find(s => s.id === studentId);
         if (!student) { showToast('Student not found!', 'error'); return false; }
         
+        if (isProcessing) {
+            showToast('Please wait...', 'info');
+            return false;
+        }
+        
+        isProcessing = true;
         showLoading(`Recording ${type} for ${student.name}...`);
         
-        const status = await checkStatus(studentId);
-        if (status.status === 'error') { showToast('Error checking status', 'error'); hideLoading(); return false; }
-        
-        if (type === 'IN' && status.hasIN) {
-            showToast(`⚠️ Already IN at ${status.inTime}`, 'error');
-            hideLoading();
-            return false;
-        }
-        if (type === 'OUT' && !status.hasIN) {
-            showToast('❌ Must check IN first!', 'error');
-            hideLoading();
-            return false;
-        }
-        if (type === 'OUT' && status.hasOUT) {
-            showToast(`⚠️ Already OUT at ${status.outTime}`, 'error');
-            hideLoading();
-            return false;
-        }
-        
-        const result = await apiCall('attendance', {
-            studentId: student.id,
-            studentName: student.name,
-            grade: student.grade,
-            studentEmail: student.email,
-            phone: student.phone || '',
-            type: type
-        });
-        
-        hideLoading();
-        
-        if (result.status === 'success') {
-            const action = type === 'IN' ? 'checked IN' : 'checked OUT';
-            showToast(`✅ ${student.name} ${action} successfully!`, 'success');
+        try {
+            // First, check current status from server
+            const status = await checkStatus(studentId);
+            console.log("Pre-check status:", status);
             
-            const today = new Date().toDateString();
-            const record = {
+            if (status.status === 'error') {
+                showToast('Error checking status', 'error');
+                hideLoading();
+                isProcessing = false;
+                return false;
+            }
+            
+            const hasIN = status.hasIN || false;
+            const hasOUT = status.hasOUT || false;
+            const inTime = status.inTime || null;
+            const outTime = status.outTime || null;
+            
+            // Validation
+            if (type === 'IN' && hasIN) {
+                showToast(`⚠️ Already IN at ${inTime}`, 'error');
+                // Update UI to show current status
+                updateStudentStatusDisplay(status);
+                hideLoading();
+                isProcessing = false;
+                return false;
+            }
+            if (type === 'OUT' && !hasIN) {
+                showToast('❌ Must check IN first!', 'error');
+                hideLoading();
+                isProcessing = false;
+                return false;
+            }
+            if (type === 'OUT' && hasOUT) {
+                showToast(`⚠️ Already OUT at ${outTime}`, 'error');
+                updateStudentStatusDisplay(status);
+                hideLoading();
+                isProcessing = false;
+                return false;
+            }
+            
+            // Send to server
+            const result = await apiCall('attendance', {
                 studentId: student.id,
                 studentName: student.name,
                 grade: student.grade,
-                type: type,
-                time: new Date().toLocaleTimeString(),
-                timestamp: new Date().toISOString(),
-                date: today
-            };
+                studentEmail: student.email,
+                phone: student.phone || '',
+                type: type
+            });
             
-            attendanceRecords = attendanceRecords.filter(r => !(r.studentId === student.id && r.date === today));
-            attendanceRecords.unshift(record);
-            localStorage.setItem('sis_records', JSON.stringify(attendanceRecords));
+            console.log("Attendance result:", result);
             
-            renderRecords();
-            resetStudentInfo();
-            return true;
-        } else {
-            showToast(`❌ ${result.message || 'Failed to record'}`, 'error');
+            if (result.status === 'success') {
+                const action = type === 'IN' ? 'checked IN' : 'checked OUT';
+                showToast(`✅ ${student.name} ${action} successfully!`, 'success');
+                
+                // Update local records
+                const today = new Date().toDateString();
+                const record = {
+                    studentId: student.id,
+                    studentName: student.name,
+                    grade: student.grade,
+                    type: type,
+                    time: new Date().toLocaleTimeString(),
+                    timestamp: new Date().toISOString(),
+                    date: today
+                };
+                
+                // Remove existing records for today
+                attendanceRecords = attendanceRecords.filter(r => !(r.studentId === student.id && r.date === today));
+                attendanceRecords.unshift(record);
+                localStorage.setItem('sis_records', JSON.stringify(attendanceRecords));
+                
+                renderRecords();
+                
+                // Re-check status from server after recording
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                const updatedStatus = await checkStatus(studentId);
+                if (updatedStatus.status === 'success') {
+                    updateStudentStatusDisplay(updatedStatus);
+                }
+                
+                hideLoading();
+                isProcessing = false;
+                return true;
+            } else {
+                showToast(`❌ ${result.message || 'Failed to record'}`, 'error');
+                hideLoading();
+                isProcessing = false;
+                return false;
+            }
+        } catch (error) {
+            console.error("Record attendance error:", error);
+            showToast(`❌ Error: ${error.message}`, 'error');
+            hideLoading();
+            isProcessing = false;
             return false;
         }
     }
     
     // ============================================
-    // STUDENT INFO - FIXED STATUS CHECK
+    // UPDATE STUDENT STATUS DISPLAY
+    // ============================================
+    function updateStudentStatusDisplay(status) {
+        if (!selectedStudent) return;
+        
+        const hasIN = status.hasIN || false;
+        const hasOUT = status.hasOUT || false;
+        const inTime = status.inTime || null;
+        const outTime = status.outTime || null;
+        
+        console.log(`Updating display - IN:${hasIN}, OUT:${hasOUT}`);
+        updateDebug(selectedStudent.id, selectedStudent.name, `IN:${hasIN} OUT:${hasOUT}`);
+        
+        if (hasIN && hasOUT) {
+            statusBadge.textContent = `✅ Complete (IN: ${inTime} | OUT: ${outTime})`;
+            statusBadge.className = 'status-badge complete';
+            btnIn.disabled = true;
+            btnOut.disabled = true;
+        } else if (hasIN) {
+            statusBadge.textContent = `🟡 IN at ${inTime} — Ready for OUT`;
+            statusBadge.className = 'status-badge pending';
+            btnIn.disabled = true;
+            btnOut.disabled = false;
+        } else {
+            statusBadge.textContent = '🔴 Not checked IN yet';
+            statusBadge.className = 'status-badge pending';
+            btnIn.disabled = false;
+            btnOut.disabled = true;
+        }
+    }
+    
+    // ============================================
+    // STUDENT INFO - SHOW AND CHECK STATUS
     // ============================================
     function showStudentInfo(student) {
         selectedStudent = student;
@@ -321,34 +434,35 @@
             console.log("Status response for", student.id, ":", status);
             
             if (status.status === 'success') {
-                const hasIN = status.hasIN || false;
-                const hasOUT = status.hasOUT || false;
-                const inTime = status.inTime || null;
-                const outTime = status.outTime || null;
-                
-                updateDebug(student.id, student.name, `IN:${hasIN} OUT:${hasOUT}`);
-                
-                if (hasIN && hasOUT) {
-                    statusBadge.textContent = `✅ Complete (IN: ${inTime} | OUT: ${outTime})`;
-                    statusBadge.className = 'status-badge complete';
-                    btnIn.disabled = true;
-                    btnOut.disabled = true;
-                } else if (hasIN) {
-                    statusBadge.textContent = `🟡 IN at ${inTime} — Ready for OUT`;
-                    statusBadge.className = 'status-badge pending';
-                    btnIn.disabled = true;
-                    btnOut.disabled = false;
-                } else {
-                    statusBadge.textContent = '🔴 Not checked IN yet';
-                    statusBadge.className = 'status-badge pending';
-                    btnIn.disabled = false;
-                    btnOut.disabled = true;
-                }
+                currentStudentStatus = status;
+                updateStudentStatusDisplay(status);
+                updateDebug(student.id, student.name, `IN:${status.hasIN} OUT:${status.hasOUT}`);
             } else {
                 statusBadge.textContent = '❌ Error checking status';
                 statusBadge.className = 'status-badge out';
                 updateDebug(student.id, student.name, 'ERROR: ' + status.message);
                 showToast('Error checking student status', 'error');
+                
+                // Try to show from local records as fallback
+                const today = new Date().toDateString();
+                const localIN = attendanceRecords.some(r => 
+                    r.studentId === student.id && r.type === 'IN' && r.date === today
+                );
+                const localOUT = attendanceRecords.some(r => 
+                    r.studentId === student.id && r.type === 'OUT' && r.date === today
+                );
+                
+                if (localIN && localOUT) {
+                    statusBadge.textContent = '✅ Complete (from local)';
+                    statusBadge.className = 'status-badge complete';
+                    btnIn.disabled = true;
+                    btnOut.disabled = true;
+                } else if (localIN) {
+                    statusBadge.textContent = '🟡 IN (from local) — Ready for OUT';
+                    statusBadge.className = 'status-badge pending';
+                    btnIn.disabled = true;
+                    btnOut.disabled = false;
+                }
             }
         }).catch(error => {
             console.error("Status check error:", error);
@@ -361,20 +475,48 @@
     
     function resetStudentInfo() {
         selectedStudent = null;
+        currentStudentStatus = null;
         studentInfo.classList.remove('show');
         btnIn.disabled = true;
         btnOut.disabled = true;
     }
     
     // ============================================
-    // QR SCAN HANDLER - FIXED
+    // REFRESH STATUS
+    // ============================================
+    async function refreshStatus() {
+        if (!selectedStudent) {
+            showToast('No student selected', 'info');
+            return;
+        }
+        
+        statusBadge.textContent = '⏳ Refreshing...';
+        statusBadge.className = 'status-badge pending';
+        btnIn.disabled = true;
+        btnOut.disabled = true;
+        
+        try {
+            const status = await checkStatus(selectedStudent.id);
+            if (status.status === 'success') {
+                currentStudentStatus = status;
+                updateStudentStatusDisplay(status);
+                showToast('Status refreshed', 'success');
+            } else {
+                showToast('Failed to refresh status', 'error');
+            }
+        } catch (error) {
+            showToast('Error refreshing status', 'error');
+        }
+    }
+    
+    // ============================================
+    // QR SCAN HANDLER
     // ============================================
     function handleQRScan(decodedText) {
         console.log("QR Scanned:", decodedText);
         updateDebug(decodedText, 'Searching...', '');
         
-        // The QR code now contains just the student ID (e.g., "SIS-001")
-        // Find the student by ID
+        // The QR code contains just the student ID (e.g., "SIS-001")
         const student = students.find(s => s.id === decodedText);
         
         if (student) {
@@ -402,10 +544,8 @@
             updateDebug(decodedText, 'NOT FOUND', '');
             showToast(`❌ Student ID "${decodedText}" not found`, 'error');
             
-            // Show list of available student IDs for debugging
-            const ids = students.map(s => s.id).join(', ');
-            console.log("Available student IDs:", ids);
             if (debugMode) {
+                const ids = students.map(s => s.id).join(', ');
                 showToast(`Available IDs: ${ids}`, 'info');
             }
         }
@@ -517,11 +657,7 @@
         manualPanel.classList.remove('show');
         document.getElementById('toggleManualBtn').innerHTML = '<i class="fas fa-keyboard"></i> Manual Entry';
         
-        if (type === 'IN') {
-            await recordAttendance(student.id, 'IN');
-        } else {
-            await recordAttendance(student.id, 'OUT');
-        }
+        await recordAttendance(student.id, type);
     }
     
     // ============================================
@@ -544,6 +680,7 @@
         debugPanel.classList.toggle('show');
         showToast(debugMode ? 'Debug mode ON' : 'Debug mode OFF', 'info');
     });
+    refreshStatusBtn.addEventListener('click', refreshStatus);
     
     btnIn.addEventListener('click', () => { if (selectedStudent) recordAttendance(selectedStudent.id, 'IN'); });
     btnOut.addEventListener('click', () => { if (selectedStudent) recordAttendance(selectedStudent.id, 'OUT'); });
