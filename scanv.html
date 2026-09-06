@@ -1,834 +1,880 @@
 <!doctype html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover"
-    />
-    <title>QR Attendance | IN/OUT with Late Exceptions</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover" />
+    <title>QR Attendance | Sapporo International School</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Inter", sans-serif;
-      }
-      body {
-        background: linear-gradient(135deg,  #0b7b3e, #0b7b3e, #0b7b3e));
-        min-height: 100vh;
-        padding: 20px;
-      }
-      .container {
-        max-width: 1000px;
-        margin: 0 auto;
-      }
-      .card {
-        background: white;
-        border-radius: 32px;
-        overflow: hidden;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
-        margin-bottom: 20px;
-      }
-      .card-header {
-        background: linear-gradient(135deg, #1a1a2e, #16213e);
-        color: white;
-        padding: 25px;
-        text-align: center;
-      }
-      .card-header h1 {
-        font-size: 1.8rem;
-      }
-      .card-body {
-        padding: 25px;
-      }
-      .scanner-container {
-        background: #000;
-        border-radius: 24px;
-        overflow: hidden;
-        margin-bottom: 15px;
-        position: relative;
-        min-height: 300px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      #reader {
-        width: 100%;
-        min-height: 350px;
-        position: relative;
-      }
-      #reader video {
-        border-radius: 24px;
-        width: 100%;
-        height: auto;
-      }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Inter", sans-serif;
+        }
 
-      .camera-controls {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 20px;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
-      .cam-btn {
-        background: linear-gradient(135deg, #1a1a2e, #16213e);
-        color: white;
-        border: none;
-        padding: 12px 20px;
-        border-radius: 40px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.9rem;
-        flex: 1;
-        justify-content: center;
-        max-width: 180px;
-      }
-      .cam-btn:hover {
-        transform: translateY(-2px);
-        opacity: 0.9;
-      }
-      .cam-btn.active {
-        background: #2ecc71;
-        box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
-      }
-      .cam-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
+        body {
+            background: linear-gradient(135deg, #0b7b3e, #0b7b3e, #0b7b3e);
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-      .stats {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 20px;
-        padding: 15px;
-        background: #f0f4f8;
-        border-radius: 20px;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-      .stat-box {
-        text-align: center;
-        flex: 1;
-        min-width: 70px;
-      }
-      .stat-number {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #1a1a2e;
-      }
-      .stat-number.late {
-        color: #95a5a6;
-      }
-      .stat-number.exception {
-        color: #f39c12;
-      }
-      .stat-label {
-        font-size: 0.7rem;
-        color: #718096;
-      }
-      .btn {
-        border: none;
-        padding: 12px 24px;
-        border-radius: 40px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        justify-content: center;
-        width: 100%;
-        margin-bottom: 10px;
-      }
-      .btn-success {
-        background: #2ecc71;
-        color: white;
-      }
-      .btn-danger {
-        background: #e74c3c;
-        color: white;
-      }
-      .btn-outline {
-        background: white;
-        border: 2px solid #cbd5e1;
-        color: #1a1a2e;
-      }
-      .btn-warning {
-        background: #f39c12;
-        color: white;
-      }
-      .btn-primary {
-        background: #3498db;
-        color: white;
-      }
-      .attendance-list {
-        max-height: 300px;
-        overflow-y: auto;
-        margin-top: 15px;
-      }
-      .attendance-item {
-        background: #f0f4f8;
-        border-radius: 16px;
-        padding: 12px;
-        margin-bottom: 8px;
-        border-left: 4px solid;
-      }
-      .attendance-item.late {
-        border-left-color: #95a5a6 !important;
-        background: #f8f9fa;
-      }
-      .attendance-item.late .status-badge {
-        background: #95a5a6 !important;
-      }
-      .attendance-item.exception {
-        border-left-color: #f39c12 !important;
-        background: #fffbf0;
-      }
-      .attendance-item.exception .status-badge {
-        background: #f39c12 !important;
-      }
-      .toast {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: #333;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 40px;
-        opacity: 0;
-        transition: 0.3s;
-        z-index: 1000;
-      }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
 
-      .modal {
-        display: none;
-        position: fixed;
-        z-index: 1001;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(5px);
-      }
-      .modal-content {
-        background: white;
-        margin: 15% auto;
-        padding: 0;
-        border-radius: 32px;
-        width: 90%;
-        max-width: 400px;
-        animation: slideIn 0.3s ease;
-      }
-      @keyframes slideIn {
-        from {
-          transform: translateY(-50px);
-          opacity: 0;
+        .card {
+            background: white;
+            border-radius: 32px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
         }
-        to {
-          transform: translateY(0);
-          opacity: 1;
+
+        .card-header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            padding: 25px;
+            text-align: center;
         }
-      }
-      .modal-header {
-        background: linear-gradient(135deg, #1a1a2e, #16213e);
-        color: white;
-        padding: 20px;
-        border-radius: 32px 32px 0 0;
-        text-align: center;
-      }
-      .modal-body {
-        padding: 25px;
-        text-align: center;
-      }
-      .modal-buttons {
-        display: flex;
-        gap: 15px;
-        padding: 0 25px 25px 25px;
-      }
-      .modal-buttons button {
-        flex: 1;
-        padding: 12px;
-        border-radius: 40px;
-        font-weight: 600;
-        cursor: pointer;
-        border: none;
-      }
-      .btn-in {
-        background: #2ecc71;
-        color: white;
-      }
-      .btn-out {
-        background: #e74c3c;
-        color: white;
-      }
-      .btn-cancel {
-        background: #95a5a6;
-        color: white;
-      }
-      .student-info-modal {
-        background: #f0f4f8;
-        padding: 15px;
-        border-radius: 16px;
-        margin: 15px 0;
-      }
-      .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-      }
-      .status-in {
-        background: #2ecc71;
-        color: white;
-      }
-      .status-out {
-        background: #e74c3c;
-        color: white;
-      }
-      .status-late {
-        background: #95a5a6;
-        color: white;
-      }
-      .status-exception {
-        background: #f39c12;
-        color: white;
-      }
-      .config-card {
-        background: #fef5e7;
-        border-left: 4px solid #f39c12;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-radius: 16px;
-        font-size: 0.85rem;
-      }
-      .loading-spinner {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 2px solid #2c5364;
-        border-top: 2px solid transparent;
-        border-radius: 50%;
-        animation: spin 0.6s linear infinite;
-        margin-right: 10px;
-      }
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
+
+        .card-header h1 {
+            font-size: 1.8rem;
         }
-        100% {
-          transform: rotate(360deg);
+
+        .card-body {
+            padding: 25px;
         }
-      }
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .sync-status {
-        font-size: 0.8rem;
-        padding: 8px 15px;
-        border-radius: 20px;
-        text-align: center;
-        margin-bottom: 15px;
-      }
-      .sync-status.success {
-        background: #d4edda;
-        color: #155724;
-      }
-      .sync-status.loading {
-        background: #fff3cd;
-        color: #856404;
-      }
-      .sync-status.error {
-        background: #f8d7da;
-        color: #721c24;
-      }
-      .late-badge {
-        background: #95a5a6;
-        color: white;
-        padding: 2px 10px;
-        border-radius: 20px;
-        font-size: 0.65rem;
-        margin-left: 5px;
-      }
-      .exception-badge {
-        background: #f39c12;
-        color: white;
-        padding: 2px 10px;
-        border-radius: 20px;
-        font-size: 0.65rem;
-        margin-left: 5px;
-      }
-      .exception-config {
-        background: #fffbf0;
-        padding: 15px;
-        border-radius: 16px;
-        margin-bottom: 15px;
-        border: 1px solid #f39c12;
-      }
-      .exception-config h4 {
-        color: #f39c12;
-        margin-bottom: 10px;
-      }
-      .exception-config small {
-        display: block;
-        color: #718096;
-        margin-top: 5px;
-      }
-      .camera-error {
-        background: #c53030;
-        color: white;
-        padding: 20px;
-        border-radius: 20px;
-        text-align: center;
-        width: 100%;
-      }
-      .camera-error button {
-        background: white;
-        color: #c53030;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 40px;
-        margin-top: 10px;
-        cursor: pointer;
-        font-weight: 600;
-      }
+
+        .scanner-container {
+            background: #000;
+            border-radius: 24px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            position: relative;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #reader {
+            width: 100%;
+            min-height: 350px;
+            position: relative;
+        }
+
+        #reader video {
+            border-radius: 24px;
+            width: 100%;
+            height: auto;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cam-btn {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            flex: 1;
+            justify-content: center;
+            max-width: 180px;
+        }
+
+        .cam-btn:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        .cam-btn.active {
+            background: #2ecc71;
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+        }
+
+        .cam-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f0f4f8;
+            border-radius: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat-box {
+            text-align: center;
+            flex: 1;
+            min-width: 70px;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        .stat-number.late {
+            color: #95a5a6;
+        }
+
+        .stat-number.exception {
+            color: #f39c12;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: #718096;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-success {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-outline {
+            background: white;
+            border: 2px solid #cbd5e1;
+            color: #1a1a2e;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .attendance-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .attendance-item {
+            background: #f0f4f8;
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+        }
+
+        .attendance-item.late {
+            border-left-color: #95a5a6 !important;
+            background: #f8f9fa;
+        }
+
+        .attendance-item.late .status-badge {
+            background: #95a5a6 !important;
+        }
+
+        .attendance-item.exception {
+            border-left-color: #f39c12 !important;
+            background: #fffbf0;
+        }
+
+        .attendance-item.exception .status-badge {
+            background: #f39c12 !important;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            opacity: 0;
+            transition: 0.3s;
+            z-index: 1000;
+            max-width: 90%;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 15% auto;
+            padding: 0;
+            border-radius: 32px;
+            width: 90%;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            padding: 20px;
+            border-radius: 32px 32px 0 0;
+            text-align: center;
+        }
+
+        .modal-body {
+            padding: 25px;
+            text-align: center;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            padding: 0 25px 25px 25px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-in {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-out {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-cancel {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .student-info-modal {
+            background: #f0f4f8;
+            padding: 15px;
+            border-radius: 16px;
+            margin: 15px 0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-in {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .status-out {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .status-late {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .status-exception {
+            background: #f39c12;
+            color: white;
+        }
+
+        .config-card {
+            background: #fef5e7;
+            border-left: 4px solid #f39c12;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 16px;
+            font-size: 0.85rem;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #2c5364;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .sync-status {
+            font-size: 0.8rem;
+            padding: 8px 15px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .sync-status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .sync-status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .sync-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .late-badge {
+            background: #95a5a6;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            margin-left: 5px;
+        }
+
+        .exception-badge {
+            background: #f39c12;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            margin-left: 5px;
+        }
+
+        .exception-config {
+            background: #fffbf0;
+            padding: 15px;
+            border-radius: 16px;
+            margin-bottom: 15px;
+            border: 1px solid #f39c12;
+        }
+
+        .exception-config h4 {
+            color: #f39c12;
+            margin-bottom: 10px;
+        }
+
+        .exception-config small {
+            display: block;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        .camera-error {
+            background: #c53030;
+            color: white;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .camera-error button {
+            background: white;
+            color: #c53030;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            margin-top: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .debug-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #718096;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
-  </head>
-  <body>
+</head>
+
+<body>
     <div class="container">
-      <div class="card">
-        <div class="card-header">
-          <img src="img/LogoSIS-white.png" width="10%" height="10%" />
-          <h1><i class="fas fa-camera"></i> Attendance Scanner</h1>
-        </div>
-        <div class="card-body">
-          <div class="config-card" id="configWarning" style="display: none">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>Google Script URL not configured!</strong><br />
-            Please update <code>GOOGLE_SCRIPT_URL</code> in the JavaScript
-            section.
-          </div>
+        <div class="card">
+            <div class="card-header">
+                <img src="img/LogoSIS-white.png" width="10%" height="10%" />
+                <h1><i class="fas fa-camera"></i> Attendance Scanner</h1>
+            </div>
+            <div class="card-body">
+                <div class="config-card" id="configWarning" style="display: none">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Google Script URL not configured!</strong><br />
+                    Please update <code>GOOGLE_SCRIPT_URL</code> in the JavaScript
+                    section.
+                </div>
 
-          <div
-            id="syncStatus"
-            class="sync-status loading"
-            style="margin-bottom: 15px"
-          >
-            <div class="loading-spinner"></div>
-            Loading students from Google Sheets...
-          </div>
+                <div id="syncStatus" class="sync-status loading" style="margin-bottom: 15px">
+                    <div class="loading-spinner"></div>
+                    Loading students from Google Sheets...
+                </div>
 
-          <div class="camera-controls">
-            <button id="switchBackBtn" class="cam-btn active">
-              <i class="fas fa-camera"></i> Back Camera
-            </button>
-            <button id="switchFrontBtn" class="cam-btn">
-              <i class="fas fa-camera-retro"></i> Front Camera
-            </button>
-            <button
-              id="restartCameraBtn"
-              class="cam-btn"
-              style="background: #3498db"
+                <!-- <div class="exception-config">
+            <h4><i class="fas fa-star"></i> Late Exception Students</h4>
+            <div
+              id="exceptionList"
+              style="font-size: 0.8rem; margin-top: 8px; color: #f39c12"
             >
-              <i class="fas fa-sync-alt"></i> Restart
-            </button>
-          </div>
+              Loading exceptions...
+            </div>
+          </div> -->
 
-          <div class="scanner-container" id="scannerContainer">
-            <div id="reader">
-              <div style="color: #718096; text-align: center; padding: 20px">
-                <i
-                  class="fas fa-camera"
-                  style="font-size: 3rem; display: block; margin-bottom: 10px"
-                ></i>
-                <p>Initializing camera...</p>
-                <div class="loading-spinner" style="margin: 10px auto"></div>
-              </div>
-            </div>
-          </div>
+                <div class="camera-controls">
+                    <button id="switchBackBtn" class="cam-btn active">
+                        <i class="fas fa-camera"></i> Back Camera
+                    </button>
+                    <button id="switchFrontBtn" class="cam-btn">
+                        <i class="fas fa-camera-retro"></i> Front Camera
+                    </button>
+                    <button id="restartCameraBtn" class="cam-btn" style="background: #3498db">
+                        <i class="fas fa-sync-alt"></i> Restart
+                    </button>
+                </div>
 
-          <div class="stats">
-            <div class="stat-box">
-              <div class="stat-number" id="todayInCount">0</div>
-              <div class="stat-label">IN Today</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-number late" id="lateCount">0</div>
-              <div class="stat-label">🕒 Late</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-number exception" id="exceptionCount">0</div>
-              <div class="stat-label">⭐ Exception</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-number" id="todayOutCount">0</div>
-              <div class="stat-label">OUT Today</div>
-            </div>
-          </div>
+                <div class="scanner-container" id="scannerContainer">
+                    <div id="reader">
+                        <div style="color: #718096; text-align: center; padding: 20px">
+                            <i class="fas fa-camera" style="font-size: 3rem; display: block; margin-bottom: 10px"></i>
+                            <p>Initializing camera...</p>
+                            <div class="loading-spinner" style="margin: 10px auto"></div>
+                        </div>
+                    </div>
+                </div>
 
-          <div
-            id="lastScanStatus"
-            style="
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-number" id="todayInCount">0</div>
+                        <div class="stat-label">IN Today</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number late" id="lateCount">0</div>
+                        <div class="stat-label">🕒 Late</div>
+                    </div>
+                    <!-- <div class="stat-box">
+                        <div class="stat-number exception" id="exceptionCount">0</div>
+                        <div class="stat-label">⭐ Exception</div>
+                    </div> -->
+                    <div class="stat-box">
+                        <div class="stat-number" id="todayOutCount">0</div>
+                        <div class="stat-label">OUT Today</div>
+                    </div>
+                </div>
+
+                <div id="lastScanStatus" style="
               text-align: center;
               padding: 10px;
               background: #f0f4f8;
               border-radius: 20px;
               margin-bottom: 15px;
-            "
-          >
-            <i class="fas fa-info-circle"></i> Ready to scan QR codes
-          </div>
+            ">
+                    <i class="fas fa-info-circle"></i> Ready to scan QR codes
+                </div>
 
-          <div style="display: flex; gap: 10px">
-            <button id="manualInBtn" class="btn-success" style="flex: 1">
-              <i class="fas fa-sign-in-alt"></i> Manual IN
-            </button>
-            <button id="manualOutBtn" class="btn-danger" style="flex: 1">
-              <i class="fas fa-sign-out-alt"></i> Manual OUT
-            </button>
-          </div>
+                <div style="display: flex; gap: 10px">
+                    <button id="manualInBtn" class="btn-success" style="flex: 1">
+                        <i class="fas fa-sign-in-alt"></i> Manual IN
+                    </button>
+                    <button id="manualOutBtn" class="btn-danger" style="flex: 1">
+                        <i class="fas fa-sign-out-alt"></i> Manual OUT
+                    </button>
+                </div>
 
-          <div id="manualPanel" style="display: none; margin-top: 10px">
-            <input
-              type="text"
-              id="manualStudentId"
-              placeholder="Enter Student ID"
-              style="
+                <div id="manualPanel" style="display: none; margin-top: 10px">
+                    <input type="text" id="manualStudentId" placeholder="Enter Student ID" style="
                 width: 100%;
                 padding: 12px;
                 margin: 10px 0;
                 border-radius: 16px;
                 border: 2px solid #e0e0e0;
-              "
-            />
-            <button id="manualSubmitIn" class="btn-success">Submit IN</button>
-            <button id="manualSubmitOut" class="btn-danger">Submit OUT</button>
-          </div>
+              " />
+                    <button id="manualSubmitIn" class="btn-success">Submit IN</button>
+                    <button id="manualSubmitOut" class="btn-danger">Submit OUT</button>
+                </div>
 
-          <button id="toggleManualBtn" class="btn-outline">
-            <i class="fas fa-keyboard"></i> Show Manual Entry
-          </button>
+                <button id="toggleManualBtn" class="btn-outline">
+                    <i class="fas fa-keyboard"></i> Show Manual Entry
+                </button>
 
-          <h3 style="margin-top: 20px">
-            <i class="fas fa-history"></i> Today's Records
-          </h3>
-          <div id="attendanceList" class="attendance-list"></div>
-          <button id="refreshBtn" class="btn-outline" style="margin-top: 10px">
-            <i class="fas fa-sync-alt"></i> Refresh
-          </button>
+                <h3 style="margin-top: 20px">
+                    <i class="fas fa-history"></i> Today's Records
+                </h3>
+                <div id="attendanceList" class="attendance-list"></div>
+                <button id="refreshBtn" class="btn-outline" style="margin-top: 10px">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+
+                <div class="debug-info" id="debugInfo"></div>
+            </div>
         </div>
-      </div>
     </div>
 
     <!-- Modal Popup for IN/OUT Selection -->
     <div id="attendanceModal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3><i class="fas fa-qrcode"></i> Record Attendance</h3>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> Record Attendance</h3>
+            </div>
+            <div class="modal-body">
+                <div id="modalStudentInfo" class="student-info-modal">
+                    <p><strong id="modalStudentName">Student Name</strong></p>
+                    <p id="modalStudentId">ID: ---</p>
+                    <p id="modalStudentGrade">Grade: ---</p>
+                    <p id="modalStudentEmail">Email: ---</p>
+                    <p id="modalCurrentStatus" style="margin-top: 10px"></p>
+                </div>
+                <p style="margin: 10px 0">Select IN or OUT:</p>
+            </div>
+            <div class="modal-buttons">
+                <button id="modalInBtn" class="btn-in">
+                    <i class="fas fa-sign-in-alt"></i> IN
+                </button>
+                <button id="modalOutBtn" class="btn-out">
+                    <i class="fas fa-sign-out-alt"></i> OUT
+                </button>
+                <button id="modalCancelBtn" class="btn-cancel">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
         </div>
-        <div class="modal-body">
-          <div id="modalStudentInfo" class="student-info-modal">
-            <p><strong id="modalStudentName">Student Name</strong></p>
-            <p id="modalStudentId">ID: ---</p>
-            <p id="modalStudentGrade">Grade: ---</p>
-            <p id="modalStudentEmail">Email: ---</p>
-            <p id="modalCurrentStatus" style="margin-top: 10px"></p>
-          </div>
-          <p style="margin: 10px 0">Select IN or OUT:</p>
-        </div>
-        <div class="modal-buttons">
-          <button id="modalInBtn" class="btn-in">
-            <i class="fas fa-sign-in-alt"></i> IN
-          </button>
-          <button id="modalOutBtn" class="btn-out">
-            <i class="fas fa-sign-out-alt"></i> OUT
-          </button>
-          <button id="modalCancelBtn" class="btn-cancel">
-            <i class="fas fa-times"></i> Cancel
-          </button>
-        </div>
-      </div>
     </div>
 
     <div id="toast" class="toast"></div>
 
     <script>
-      // ============ CONFIGURATION ============
-      const GOOGLE_SCRIPT_URL =
-        "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+        // ============ CONFIGURATION ============
+        const GOOGLE_SCRIPT_URL =
+            "https://script.google.com/macros/s/AKfycbyBMsJhGLbD-n24b7zpT-fx4y2c8Pl4iLm0Sjy534iqFslTirf87BTmsIKYrY2X4yAa/exec";
 
-      // ============ LATE CONFIGURATION ============
-      const LATE_CUTOFF_TIME = "08:00";
+        // ============ LATE CONFIGURATION ============
+        const LATE_CUTOFF_TIME = "08:00";
+        const LATE_EXCEPTIONS = ["SIS-00000001"];
 
-      // ============ LATE EXCEPTIONS ============
-      const LATE_EXCEPTIONS = ["SIS-00000001"];
+        // ============ GLOBAL VARIABLES ============
+        let currentCamera = "environment";
+        let html5QrCode = null;
+        let isScanning = false;
+        let cameraInitialized = false;
+        let attendanceRecords = [];
+        let students = [];
+        let pendingStudent = null;
+        let isProcessing = false;
+        let isLoadingStudents = false;
 
-      // ============ CAMERA CONFIGURATION ============
-      let currentCamera = "environment";
-      let html5QrCode = null;
-      let isScanning = false;
-      let cameraInitialized = false;
-
-      // ============ GLOBAL VARIABLES ============
-      let attendanceRecords = [];
-      let students = [];
-      let pendingStudent = null;
-      let isProcessing = false;
-      let isLoadingStudents = false;
-
-      function showToast(message, isError = false) {
-        const toast = document.getElementById("toast");
-        toast.textContent = message;
-        toast.style.backgroundColor = isError ? "#e74c3c" : "#2ecc71";
-        toast.style.opacity = "1";
-        setTimeout(() => (toast.style.opacity = "0"), 3000);
-      }
-
-      function updateSyncStatus(status, message) {
-        const statusDiv = document.getElementById("syncStatus");
-        if (status === "loading") {
-          statusDiv.className = "sync-status loading";
-          statusDiv.innerHTML =
-            '<div class="loading-spinner"></div> ' + message;
-        } else if (status === "success") {
-          statusDiv.className = "sync-status success";
-          statusDiv.innerHTML =
-            '<i class="fas fa-check-circle"></i> ' + message;
-        } else {
-          statusDiv.className = "sync-status error";
-          statusDiv.innerHTML =
-            '<i class="fas fa-exclamation-circle"></i> ' + message;
+        function showToast(message, isError = false) {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.style.backgroundColor = isError ? "#e74c3c" : "#2ecc71";
+            toast.style.opacity = "1";
+            setTimeout(() => (toast.style.opacity = "0"), 3000);
         }
-      }
 
-      function hasLateException(studentId) {
-        return LATE_EXCEPTIONS.includes(studentId);
-      }
+        function updateSyncStatus(status, message) {
+            const statusDiv = document.getElementById("syncStatus");
+            if (status === "loading") {
+                statusDiv.className = "sync-status loading";
+                statusDiv.innerHTML =
+                    '<div class="loading-spinner"></div> ' + message;
+            } else if (status === "success") {
+                statusDiv.className = "sync-status success";
+                statusDiv.innerHTML =
+                    '<i class="fas fa-check-circle"></i> ' + message;
+            } else {
+                statusDiv.className = "sync-status error";
+                statusDiv.innerHTML =
+                    '<i class="fas fa-exclamation-circle"></i> ' + message;
+            }
+        }
 
-      function isLateForStudent(timeStr, studentId) {
-        if (!timeStr) return false;
-        if (hasLateException(studentId)) return false;
+        function hasLateException(studentId) {
+            return LATE_EXCEPTIONS.includes(studentId);
+        }
 
-        const [hours, minutes] = timeStr.split(":").map(Number);
-        const timeMinutes = hours * 60 + minutes;
-        const [cutoffHours, cutoffMinutes] =
-          LATE_CUTOFF_TIME.split(":").map(Number);
-        const cutoffMinutesTotal = cutoffHours * 60 + cutoffMinutes;
+        function isLateForStudent(timeStr, studentId) {
+            if (!timeStr) return false;
+            if (hasLateException(studentId)) return false;
+            const [hours, minutes] = timeStr.split(":").map(Number);
+            const timeMinutes = hours * 60 + minutes;
+            const [cutoffHours, cutoffMinutes] =
+                LATE_CUTOFF_TIME.split(":").map(Number);
+            const cutoffMinutesTotal = cutoffHours * 60 + cutoffMinutes;
+            return timeMinutes > cutoffMinutesTotal;
+        }
 
-        return timeMinutes > cutoffMinutesTotal;
-      }
+        async function loadStudentsFromSheet() {
+            if (isLoadingStudents) return;
+            isLoadingStudents = true;
+            updateSyncStatus("loading", "Loading students from Google Sheets...");
 
-      async function loadStudentsFromSheet() {
-        if (isLoadingStudents) return;
-        isLoadingStudents = true;
+            try {
+                const url = `${GOOGLE_SCRIPT_URL}?action=getStudents&t=${Date.now()}`;
+                const response = await fetch(url);
+                const data = await response.json();
 
-        updateSyncStatus("loading", "Loading students from Google Sheets...");
+                if (data.status === "success" && data.students) {
+                    students = data.students;
+                    localStorage.setItem(
+                        "attendance_students_backup",
+                        JSON.stringify(students),
+                    );
+                    updateSyncStatus("success", `Loaded ${students.length} students`);
+                    displayExceptions();
+                    return true;
+                } else {
+                    throw new Error(data.message || "Invalid data");
+                }
+            } catch (error) {
+                console.error("Error loading students:", error);
+                const backup = localStorage.getItem("attendance_students_backup");
+                if (backup) {
+                    students = JSON.parse(backup);
+                    updateSyncStatus(
+                        "success",
+                        `Using cached data (${students.length} students)`,
+                    );
+                    showToast(`⚠️ Using cached student data`, true);
+                    displayExceptions();
+                    return true;
+                } else {
+                    students = [];
+                    updateSyncStatus("error", `Failed to load: ${error.message}`);
+                    showToast(`❌ Failed to load students: ${error.message}`, true);
+                    return false;
+                }
+            } finally {
+                isLoadingStudents = false;
+            }
+        }
 
-        try {
-          const url = `${GOOGLE_SCRIPT_URL}?action=getStudents&t=${Date.now()}`;
-          const response = await fetch(url);
-          const data = await response.json();
-
-          if (data.status === "success" && data.students) {
-            students = data.students;
-            localStorage.setItem(
-              "attendance_students_backup",
-              JSON.stringify(students),
+        function displayExceptions() {
+            const container = document.getElementById("exceptionList");
+            const exceptionStudents = students.filter((s) =>
+                LATE_EXCEPTIONS.includes(s.id),
             );
-            updateSyncStatus("success", `Loaded ${students.length} students`);
-            displayExceptions();
-            return true;
-          } else {
-            throw new Error(data.message || "Invalid data");
-          }
-        } catch (error) {
-          console.error("Error loading students:", error);
-          const backup = localStorage.getItem("attendance_students_backup");
-          if (backup) {
-            students = JSON.parse(backup);
-            updateSyncStatus(
-              "success",
-              `Using cached data (${students.length} students)`,
-            );
-            showToast(`⚠️ Using cached student data`, true);
-            displayExceptions();
-            return true;
-          } else {
-            students = [];
-            updateSyncStatus("error", `Failed to load: ${error.message}`);
-            showToast(`❌ Failed to load students: ${error.message}`, true);
-            return false;
-          }
-        } finally {
-          isLoadingStudents = false;
-        }
-      }
-
-      function displayExceptions() {
-        const container = document.getElementById("exceptionList");
-        const exceptionStudents = students.filter((s) =>
-          LATE_EXCEPTIONS.includes(s.id),
-        );
-
-        if (exceptionStudents.length === 0) {
-          container.innerHTML = "No students currently have late exceptions.";
-          return;
-        }
-
-        container.innerHTML = exceptionStudents
-          .map(
-            (s) =>
-              `<span style="display:inline-block; background:#fff3cd; padding:2px 10px; border-radius:20px; margin:3px; border:1px solid #f39c12;">
+            if (exceptionStudents.length === 0) {
+                container.innerHTML = "No students currently have late exceptions.";
+                return;
+            }
+            container.innerHTML = exceptionStudents
+                .map(
+                    (s) =>
+                        `<span style="display:inline-block; background:#fff3cd; padding:2px 10px; border-radius:20px; margin:3px; border:1px solid #f39c12;">
                 ⭐ ${escapeHtml(s.name)} (${s.id})
             </span>`,
-          )
-          .join("");
-      }
-
-      function loadAttendanceLocal() {
-        const storedAttendance = localStorage.getItem(
-          "attendance_records_inout",
-        );
-        if (storedAttendance) {
-          attendanceRecords = JSON.parse(storedAttendance);
-        } else {
-          attendanceRecords = [];
-        }
-        updateStats();
-        renderAttendanceList();
-      }
-
-      function saveAttendanceLocal() {
-        localStorage.setItem(
-          "attendance_records_inout",
-          JSON.stringify(attendanceRecords),
-        );
-        updateStats();
-        renderAttendanceList();
-      }
-
-      function updateStats() {
-        const today = new Date().toDateString();
-        const todayRecords = attendanceRecords.filter(
-          (r) => new Date(r.timestamp).toDateString() === today,
-        );
-        const todayIn = todayRecords.filter((r) => r.type === "IN").length;
-        const todayOut = todayRecords.filter((r) => r.type === "OUT").length;
-
-        const lateArrivals = todayRecords.filter((r) => {
-          if (r.type !== "IN") return false;
-          const timeStr = new Date(r.timestamp).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          });
-          return isLateForStudent(timeStr, r.studentId);
-        });
-        const lateCount = lateArrivals.length;
-
-        const exceptionArrivals = todayRecords.filter((r) => {
-          if (r.type !== "IN") return false;
-          if (!hasLateException(r.studentId)) return false;
-          const timeStr = new Date(r.timestamp).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          });
-          return (
-            isLateForStudent(timeStr, r.studentId) === false &&
-            timeStr > LATE_CUTOFF_TIME
-          );
-        });
-        const exceptionCount = exceptionArrivals.length;
-
-        document.getElementById("todayInCount").innerText = todayIn;
-        document.getElementById("todayOutCount").innerText = todayOut;
-        document.getElementById("lateCount").innerText = lateCount;
-        document.getElementById("exceptionCount").innerText = exceptionCount;
-      }
-
-      function renderAttendanceList() {
-        const container = document.getElementById("attendanceList");
-        const today = new Date().toDateString();
-        const todayRecords = attendanceRecords
-          .filter((r) => new Date(r.timestamp).toDateString() === today)
-          .reverse();
-
-        if (todayRecords.length === 0) {
-          container.innerHTML =
-            '<div style="text-align:center; color:#999;">No records today</div>';
-          return;
+                )
+                .join("");
         }
 
-        container.innerHTML = todayRecords
-          .map((rec) => {
-            let isLateArrival = false;
-            let isExceptionArrival = false;
-            let lateLabel = "";
-            let extraClass = "";
-            let statusClass = "";
-            let borderColor = "";
-
-            if (rec.type === "IN") {
-              const timeStr = new Date(rec.timestamp).toLocaleTimeString(
-                "en-US",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                },
-              );
-
-              if (hasLateException(rec.studentId)) {
-                if (timeStr > LATE_CUTOFF_TIME) {
-                  isExceptionArrival = true;
-                  lateLabel =
-                    '<span class="exception-badge">⭐ Exception</span>';
-                  extraClass = "exception";
-                  statusClass = "status-exception";
-                  borderColor = "#f39c12";
-                } else {
-                  borderColor = "#2ecc71";
-                  statusClass = "status-in";
-                }
-              } else {
-                if (isLateForStudent(timeStr, rec.studentId)) {
-                  isLateArrival = true;
-                  lateLabel = '<span class="late-badge">🕒 Late</span>';
-                  extraClass = "late";
-                  statusClass = "status-late";
-                  borderColor = "#95a5a6";
-                } else {
-                  borderColor = "#2ecc71";
-                  statusClass = "status-in";
-                }
-              }
+        function loadAttendanceLocal() {
+            const storedAttendance = localStorage.getItem(
+                "attendance_records_inout",
+            );
+            if (storedAttendance) {
+                attendanceRecords = JSON.parse(storedAttendance);
             } else {
-              borderColor = "#e74c3c";
-              statusClass = "status-out";
+                attendanceRecords = [];
+            }
+            updateStats();
+            renderAttendanceList();
+        }
+
+        function saveAttendanceLocal() {
+            localStorage.setItem(
+                "attendance_records_inout",
+                JSON.stringify(attendanceRecords),
+            );
+            updateStats();
+            renderAttendanceList();
+        }
+
+        function updateStats() {
+            const today = new Date().toDateString();
+            const todayRecords = attendanceRecords.filter(
+                (r) => new Date(r.timestamp).toDateString() === today,
+            );
+            const todayIn = todayRecords.filter((r) => r.type === "IN").length;
+            const todayOut = todayRecords.filter((r) => r.type === "OUT").length;
+
+            const lateArrivals = todayRecords.filter((r) => {
+                if (r.type !== "IN") return false;
+                const timeStr = new Date(r.timestamp).toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                });
+                return isLateForStudent(timeStr, r.studentId);
+            });
+            const lateCount = lateArrivals.length;
+
+            const exceptionArrivals = todayRecords.filter((r) => {
+                if (r.type !== "IN") return false;
+                if (!hasLateException(r.studentId)) return false;
+                const timeStr = new Date(r.timestamp).toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                });
+                return (
+                    isLateForStudent(timeStr, r.studentId) === false &&
+                    timeStr > LATE_CUTOFF_TIME
+                );
+            });
+            const exceptionCount = exceptionArrivals.length;
+
+            document.getElementById("todayInCount").innerText = todayIn;
+            document.getElementById("todayOutCount").innerText = todayOut;
+            document.getElementById("lateCount").innerText = lateCount;
+            document.getElementById("exceptionCount").innerText = exceptionCount;
+        }
+
+        function renderAttendanceList() {
+            const container = document.getElementById("attendanceList");
+            const today = new Date().toDateString();
+            const todayRecords = attendanceRecords
+                .filter((r) => new Date(r.timestamp).toDateString() === today)
+                .reverse();
+
+            if (todayRecords.length === 0) {
+                container.innerHTML =
+                    '<div style="text-align:center; color:#999;">No records today</div>';
+                return;
             }
 
-            const itemClass = extraClass
-              ? `attendance-item ${extraClass}`
-              : "attendance-item";
+            container.innerHTML = todayRecords
+                .map((rec) => {
+                    let isLateArrival = false;
+                    let isExceptionArrival = false;
+                    let lateLabel = "";
+                    let extraClass = "";
+                    let statusClass = "";
+                    let borderColor = "";
 
-            return `
+                    if (rec.type === "IN") {
+                        const timeStr = new Date(rec.timestamp).toLocaleTimeString(
+                            "en-US",
+                            { hour: "2-digit", minute: "2-digit", hour12: false },
+                        );
+                        if (hasLateException(rec.studentId)) {
+                            if (timeStr > LATE_CUTOFF_TIME) {
+                                isExceptionArrival = true;
+                                lateLabel =
+                                    '<span class="exception-badge">⭐ Exception</span>';
+                                extraClass = "exception";
+                                statusClass = "status-exception";
+                                borderColor = "#f39c12";
+                            } else {
+                                borderColor = "#2ecc71";
+                                statusClass = "status-in";
+                            }
+                        } else {
+                            if (isLateForStudent(timeStr, rec.studentId)) {
+                                isLateArrival = true;
+                                lateLabel = '<span class="late-badge">🕒 Late</span>';
+                                extraClass = "late";
+                                statusClass = "status-late";
+                                borderColor = "#95a5a6";
+                            } else {
+                                borderColor = "#2ecc71";
+                                statusClass = "status-in";
+                            }
+                        }
+                    } else {
+                        borderColor = "#e74c3c";
+                        statusClass = "status-out";
+                    }
+
+                    const itemClass = extraClass
+                        ? `attendance-item ${extraClass}`
+                        : "attendance-item";
+                    return `
                 <div class="${itemClass}" style="border-left-color: ${borderColor};">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <strong>${escapeHtml(rec.studentName)}</strong>
@@ -841,595 +887,556 @@
                     <div style="font-size:0.7rem;">${new Date(rec.timestamp).toLocaleTimeString()}</div>
                 </div>
             `;
-          })
-          .join("");
-      }
-
-      function getTodayStatus(studentId) {
-        const today = new Date().toDateString();
-        const hasIN = attendanceRecords.some(
-          (r) =>
-            r.studentId === studentId &&
-            r.type === "IN" &&
-            new Date(r.timestamp).toDateString() === today,
-        );
-        const hasOUT = attendanceRecords.some(
-          (r) =>
-            r.studentId === studentId &&
-            r.type === "OUT" &&
-            new Date(r.timestamp).toDateString() === today,
-        );
-
-        if (hasIN && hasOUT) return "completed";
-        if (hasIN) return "in_only";
-        return "none";
-      }
-
-      async function sendAttendanceToSheet(student, type) {
-        const url = `${GOOGLE_SCRIPT_URL}?action=attendance&studentId=${encodeURIComponent(student.id)}&studentName=${encodeURIComponent(student.name)}&grade=${encodeURIComponent(student.grade)}&studentEmail=${encodeURIComponent(student.email)}&phone=${encodeURIComponent(student.phone)}&type=${type}&source=${type === "IN" ? "qr_scan_in" : "qr_scan_out"}&t=${Date.now()}`;
-
-        console.log("Sending attendance:", url);
-
-        try {
-          const response = await fetch(url);
-          const data = await response.json();
-          console.log("Response:", data);
-          return data;
-        } catch (error) {
-          console.error("Fetch error:", error);
-          throw error;
-        }
-      }
-
-      async function processAttendance(student, type) {
-        if (isProcessing) {
-          showToast("Please wait, processing...", true);
-          return false;
+                })
+                .join("");
         }
 
-        isProcessing = true;
-
-        document.getElementById("modalInBtn").disabled = true;
-        document.getElementById("modalOutBtn").disabled = true;
-
-        try {
-          // Check if student already has IN/OUT for today
-          const today = new Date().toDateString();
-          const hasIN = attendanceRecords.some(
-            (r) =>
-              r.studentId === student.id &&
-              r.type === "IN" &&
-              new Date(r.timestamp).toDateString() === today,
-          );
-          const hasOUT = attendanceRecords.some(
-            (r) =>
-              r.studentId === student.id &&
-              r.type === "OUT" &&
-              new Date(r.timestamp).toDateString() === today,
-          );
-
-          // Validate
-          if (type === "IN" && hasIN) {
-            showToast(`❌ ${student.name} already checked IN today!`, true);
-            isProcessing = false;
-            document.getElementById("modalInBtn").disabled = false;
-            document.getElementById("modalOutBtn").disabled = false;
-            return false;
-          }
-
-          if (type === "OUT" && !hasIN) {
-            showToast(
-              `❌ ${student.name} hasn't checked IN today! Please IN first.`,
-              true,
+        function getTodayStatus(studentId) {
+            const today = new Date().toDateString();
+            const hasIN = attendanceRecords.some(
+                (r) =>
+                    r.studentId === studentId &&
+                    r.type === "IN" &&
+                    new Date(r.timestamp).toDateString() === today,
             );
-            isProcessing = false;
-            document.getElementById("modalInBtn").disabled = false;
-            document.getElementById("modalOutBtn").disabled = false;
-            return false;
-          }
-
-          if (type === "OUT" && hasOUT) {
-            showToast(`❌ ${student.name} already checked OUT today!`, true);
-            isProcessing = false;
-            document.getElementById("modalInBtn").disabled = false;
-            document.getElementById("modalOutBtn").disabled = false;
-            return false;
-          }
-
-          // Send to Google Sheets
-          const result = await sendAttendanceToSheet(student, type);
-
-          if (result.status === "error") {
-            showToast(result.message, true);
-            isProcessing = false;
-            return false;
-          }
-
-          // Add to local records
-          const record = {
-            studentId: student.id,
-            studentName: student.name,
-            grade: student.grade,
-            email: student.email,
-            phone: student.phone,
-            timestamp: new Date().toISOString(),
-            type: type,
-            source: type === "IN" ? "qr_scan_in" : "qr_scan_out",
-          };
-
-          // Remove existing IN record if this is OUT (to keep only latest)
-          if (type === "OUT") {
-            const existingINIndex = attendanceRecords.findIndex(
-              (r) =>
-                r.studentId === student.id &&
-                r.type === "IN" &&
-                new Date(r.timestamp).toDateString() === today,
+            const hasOUT = attendanceRecords.some(
+                (r) =>
+                    r.studentId === studentId &&
+                    r.type === "OUT" &&
+                    new Date(r.timestamp).toDateString() === today,
             );
-            // Keep the IN record, just add OUT
-          }
+            if (hasIN && hasOUT) return "completed";
+            if (hasIN) return "in_only";
+            return "none";
+        }
 
-          attendanceRecords.unshift(record);
-          saveAttendanceLocal();
+        async function sendAttendanceToSheet(student, type) {
+            const url = `${GOOGLE_SCRIPT_URL}?action=attendance&studentId=${encodeURIComponent(student.id)}&studentName=${encodeURIComponent(student.name)}&grade=${encodeURIComponent(student.grade)}&studentEmail=${encodeURIComponent(student.email)}&phone=${encodeURIComponent(student.phone)}&type=${type}&source=qr_scan&t=${Date.now()}`;
 
-          const actionText = type === "IN" ? "checked IN" : "checked OUT";
+            console.log("Sending to Google Sheets:", url);
+            document.getElementById("debugInfo").style.display = "block";
+            document.getElementById("debugInfo").innerHTML =
+                `<strong>Debug:</strong> Sending ${type} for ${student.name} (${student.id})`;
 
-          // Check if late for IN
-          let statusMessage = "";
-          if (type === "IN") {
-            const timeStr = new Date().toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            });
-
-            if (hasLateException(student.id)) {
-              if (timeStr > LATE_CUTOFF_TIME) {
-                statusMessage = " ⭐ (Exception - Late allowed)";
-              }
-            } else {
-              if (isLateForStudent(timeStr, student.id)) {
-                statusMessage = " 🕒 (Late arrival)";
-              }
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                console.log("Response:", data);
+                document.getElementById("debugInfo").innerHTML +=
+                    `<br>Response: ${JSON.stringify(data)}`;
+                return data;
+            } catch (error) {
+                console.error("Fetch error:", error);
+                document.getElementById("debugInfo").innerHTML +=
+                    `<br>Error: ${error.message}`;
+                throw error;
             }
-          }
+        }
 
-          showToast(
-            `✅ ${student.name} ${actionText} successfully!${statusMessage}`,
-          );
+        async function processAttendance(student, type) {
+            if (isProcessing) {
+                showToast("Please wait, processing...", true);
+                return false;
+            }
 
-          document.getElementById("lastScanStatus").innerHTML = `
+            isProcessing = true;
+            document.getElementById("modalInBtn").disabled = true;
+            document.getElementById("modalOutBtn").disabled = true;
+
+            try {
+                const today = new Date().toDateString();
+                const hasIN = attendanceRecords.some(
+                    (r) =>
+                        r.studentId === student.id &&
+                        r.type === "IN" &&
+                        new Date(r.timestamp).toDateString() === today,
+                );
+                const hasOUT = attendanceRecords.some(
+                    (r) =>
+                        r.studentId === student.id &&
+                        r.type === "OUT" &&
+                        new Date(r.timestamp).toDateString() === today,
+                );
+
+                // Validation
+                if (type === "IN" && hasIN) {
+                    showToast(`❌ ${student.name} already checked IN today!`, true);
+                    isProcessing = false;
+                    document.getElementById("modalInBtn").disabled = false;
+                    document.getElementById("modalOutBtn").disabled = false;
+                    return false;
+                }
+
+                if (type === "OUT" && !hasIN) {
+                    showToast(
+                        `❌ ${student.name} hasn't checked IN today! Please IN first.`,
+                        true,
+                    );
+                    isProcessing = false;
+                    document.getElementById("modalInBtn").disabled = false;
+                    document.getElementById("modalOutBtn").disabled = false;
+                    return false;
+                }
+
+                if (type === "OUT" && hasOUT) {
+                    showToast(`❌ ${student.name} already checked OUT today!`, true);
+                    isProcessing = false;
+                    document.getElementById("modalInBtn").disabled = false;
+                    document.getElementById("modalOutBtn").disabled = false;
+                    return false;
+                }
+
+                // Send to Google Sheets
+                const result = await sendAttendanceToSheet(student, type);
+
+                if (result.status === "error") {
+                    showToast(`❌ ${result.message}`, true);
+                    isProcessing = false;
+                    return false;
+                }
+
+                // Add to local records
+                const record = {
+                    studentId: student.id,
+                    studentName: student.name,
+                    grade: student.grade,
+                    email: student.email,
+                    phone: student.phone,
+                    timestamp: new Date().toISOString(),
+                    type: type,
+                    source: "qr_scan",
+                };
+
+                // Remove any existing OUT for today if this is OUT (shouldn't happen but just in case)
+                if (type === "OUT") {
+                    const existingOUTIndex = attendanceRecords.findIndex(
+                        (r) =>
+                            r.studentId === student.id &&
+                            r.type === "OUT" &&
+                            new Date(r.timestamp).toDateString() === today,
+                    );
+                    if (existingOUTIndex !== -1) {
+                        attendanceRecords.splice(existingOUTIndex, 1);
+                    }
+                }
+
+                attendanceRecords.unshift(record);
+                saveAttendanceLocal();
+
+                const actionText = type === "IN" ? "checked IN" : "checked OUT";
+                let statusMessage = "";
+                if (type === "IN") {
+                    const timeStr = new Date().toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                    });
+                    if (hasLateException(student.id)) {
+                        if (timeStr > LATE_CUTOFF_TIME) {
+                            statusMessage = " ⭐ (Exception - Late allowed)";
+                        }
+                    } else {
+                        if (isLateForStudent(timeStr, student.id)) {
+                            statusMessage = " 🕒 (Late arrival)";
+                        }
+                    }
+                }
+
+                showToast(
+                    `✅ ${student.name} ${actionText} successfully!${statusMessage}`,
+                );
+
+                document.getElementById("lastScanStatus").innerHTML = `
                 <i class="fas ${type === "IN" ? "fa-sign-in-alt" : "fa-sign-out-alt"}"></i> 
                 Last: ${student.name} ${type === "IN" ? "IN" : "OUT"} at ${new Date().toLocaleTimeString()}${statusMessage}
             `;
 
-          isProcessing = false;
-          return true;
-        } catch (error) {
-          console.error("Process error:", error);
-          showToast(`Error: ${error.message}`, true);
-          isProcessing = false;
-          return false;
-        } finally {
-          document.getElementById("modalInBtn").disabled = false;
-          document.getElementById("modalOutBtn").disabled = false;
-        }
-      }
-
-      function showModal(student) {
-        const status = getTodayStatus(student.id);
-        let statusText = "";
-
-        const hasException = hasLateException(student.id);
-        const exceptionText = hasException ? " ⭐ (Late Exception)" : "";
-
-        if (status === "completed") {
-          statusText = `<span style="color:#e74c3c;">⚠️ Already completed both IN and OUT today!${exceptionText}</span>`;
-        } else if (status === "in_only") {
-          statusText = `<span style="color:#f39c12;">📤 Already checked IN. You can now check OUT.${exceptionText}</span>`;
-        } else {
-          statusText = `<span style="color:#2ecc71;">✅ Ready to check IN.${exceptionText}</span>`;
+                isProcessing = false;
+                return true;
+            } catch (error) {
+                console.error("Process error:", error);
+                showToast(`Error: ${error.message}`, true);
+                isProcessing = false;
+                return false;
+            } finally {
+                document.getElementById("modalInBtn").disabled = false;
+                document.getElementById("modalOutBtn").disabled = false;
+            }
         }
 
-        pendingStudent = student;
-        document.getElementById("modalStudentName").innerHTML =
-          `<i class="fas fa-user"></i> ${escapeHtml(student.name)} ${hasException ? "⭐" : ""}`;
-        document.getElementById("modalStudentId").innerHTML =
-          `<i class="fas fa-id-card"></i> ID: ${student.id}`;
-        document.getElementById("modalStudentGrade").innerHTML =
-          `<i class="fas fa-graduation-cap"></i> Grade: ${student.grade}`;
-        document.getElementById("modalStudentEmail").innerHTML =
-          `<i class="fas fa-envelope"></i> ${student.email}`;
-        document.getElementById("modalCurrentStatus").innerHTML = statusText;
+        function showModal(student) {
+            const status = getTodayStatus(student.id);
+            let statusText = "";
+            const hasException = hasLateException(student.id);
+            const exceptionText = hasException ? " ⭐ (Late Exception)" : "";
 
-        const inBtn = document.getElementById("modalInBtn");
-        const outBtn = document.getElementById("modalOutBtn");
-
-        if (status === "completed") {
-          inBtn.disabled = true;
-          outBtn.disabled = true;
-          inBtn.style.opacity = "0.5";
-          outBtn.style.opacity = "0.5";
-        } else if (status === "in_only") {
-          inBtn.disabled = true;
-          outBtn.disabled = false;
-          inBtn.style.opacity = "0.5";
-          outBtn.style.opacity = "1";
-        } else {
-          inBtn.disabled = false;
-          outBtn.disabled = true;
-          inBtn.style.opacity = "1";
-          outBtn.style.opacity = "0.5";
-        }
-
-        document.getElementById("attendanceModal").style.display = "block";
-      }
-
-      function closeModal() {
-        document.getElementById("attendanceModal").style.display = "none";
-        pendingStudent = null;
-      }
-
-      function handleScannedQR(decodedText) {
-        try {
-          const data = JSON.parse(decodedText);
-          if (data.type === "attendance" && data.studentId) {
-            const student = students.find((s) => s.id === data.studentId);
-            if (student) {
-              showModal(student);
+            if (status === "completed") {
+                statusText = `<span style="color:#e74c3c;">⚠️ Already completed both IN and OUT today!${exceptionText}</span>`;
+            } else if (status === "in_only") {
+                statusText = `<span style="color:#f39c12;">📤 Already checked IN. You can now check OUT.${exceptionText}</span>`;
             } else {
-              showToast(
-                `Student ID ${data.studentId} not found in database!`,
-                true,
-              );
+                statusText = `<span style="color:#2ecc71;">✅ Ready to check IN.${exceptionText}</span>`;
             }
-          } else {
-            showToast("Invalid QR code", true);
-          }
-        } catch (e) {
-          const student = students.find((s) => s.id === decodedText);
-          if (student) {
-            showModal(student);
-          } else if (decodedText.startsWith("STU-")) {
-            showToast(
-              `Student ID ${decodedText} not found! Please register first.`,
-              true,
-            );
-          } else {
-            showToast("QR not recognized", true);
-          }
-        }
-      }
 
-      // ============ CAMERA FUNCTIONS ============
+            pendingStudent = student;
+            document.getElementById("modalStudentName").innerHTML =
+                `<i class="fas fa-user"></i> ${escapeHtml(student.name)} ${hasException ? "⭐" : ""}`;
+            document.getElementById("modalStudentId").innerHTML =
+                `<i class="fas fa-id-card"></i> ID: ${student.id}`;
+            document.getElementById("modalStudentGrade").innerHTML =
+                `<i class="fas fa-graduation-cap"></i> Grade: ${student.grade}`;
+            document.getElementById("modalStudentEmail").innerHTML =
+                `<i class="fas fa-envelope"></i> ${student.email}`;
+            document.getElementById("modalCurrentStatus").innerHTML = statusText;
 
-      async function switchCamera(cameraType) {
-        if (!html5QrCode) {
-          showToast("Scanner not initialized", true);
-          return;
-        }
+            const inBtn = document.getElementById("modalInBtn");
+            const outBtn = document.getElementById("modalOutBtn");
 
-        try {
-          if (isScanning) {
-            await html5QrCode.stop();
-            isScanning = false;
-            cameraInitialized = false;
-          }
-
-          const readerElement = document.getElementById("reader");
-          readerElement.innerHTML = `
-                <div style="color: white; text-align: center; padding: 20px;">
-                    <i class="fas fa-camera" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
-                    <div class="loading-spinner" style="margin: 10px auto;"></div>
-                    <p>Switching camera...</p>
-                </div>
-            `;
-
-          const config = {
-            fps: 10,
-            qrbox: { width: 280, height: 280 },
-            aspectRatio: 1.0,
-          };
-
-          await html5QrCode.start(
-            {
-              facingMode: cameraType === "environment" ? "environment" : "user",
-            },
-            config,
-            handleScannedQR,
-            (errorMessage) => {},
-          );
-
-          isScanning = true;
-          cameraInitialized = true;
-          currentCamera = cameraType;
-
-          const backBtn = document.getElementById("switchBackBtn");
-          const frontBtn = document.getElementById("switchFrontBtn");
-          if (cameraType === "environment") {
-            backBtn.classList.add("active");
-            frontBtn.classList.remove("active");
-          } else {
-            frontBtn.classList.add("active");
-            backBtn.classList.remove("active");
-          }
-
-          showToast(
-            `Switched to ${cameraType === "environment" ? "Back" : "Front"} Camera`,
-          );
-        } catch (err) {
-          console.error("Camera switch error:", err);
-          showCameraError(`Failed to switch camera: ${err.message}`);
-          showToast(`Camera error: ${err.message}`, true);
-          isScanning = false;
-          cameraInitialized = false;
-        }
-      }
-
-      function showCameraError(message) {
-        const reader = document.getElementById("reader");
-        reader.innerHTML = `
-            <div class="camera-error">
-                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
-                <p><strong>Camera Error</strong></p>
-                <p style="font-size: 0.9rem; margin: 10px 0;">${message}</p>
-                <button onclick="initScanner()">
-                    <i class="fas fa-sync-alt"></i> Retry Camera
-                </button>
-            </div>
-        `;
-      }
-
-      async function initScanner() {
-        try {
-          if (html5QrCode) {
-            try {
-              if (isScanning) {
-                await html5QrCode.stop();
-              }
-            } catch (e) {}
-            isScanning = false;
-            cameraInitialized = false;
-          }
-
-          const readerElement = document.getElementById("reader");
-          if (!readerElement) return;
-
-          readerElement.innerHTML = `
-                <div style="color: white; text-align: center; padding: 20px;">
-                    <i class="fas fa-camera" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
-                    <div class="loading-spinner" style="margin: 10px auto;"></div>
-                    <p>Starting camera...</p>
-                    <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 5px;">Please grant camera permission when prompted.</p>
-                </div>
-            `;
-
-          html5QrCode = new Html5Qrcode("reader");
-
-          const config = {
-            fps: 10,
-            qrbox: { width: 280, height: 280 },
-            aspectRatio: 1.0,
-          };
-
-          let started = false;
-          let errorMsg = "";
-
-          try {
-            await html5QrCode.start(
-              { facingMode: "environment" },
-              config,
-              handleScannedQR,
-              (errorMessage) => {},
-            );
-            started = true;
-            currentCamera = "environment";
-            document.getElementById("switchBackBtn").classList.add("active");
-            document
-              .getElementById("switchFrontBtn")
-              .classList.remove("active");
-            showToast("Scanner ready - Back Camera active");
-          } catch (err) {
-            errorMsg = err.message;
-            console.error("Back camera error:", err);
-
-            try {
-              await html5QrCode.start(
-                { facingMode: "user" },
-                config,
-                handleScannedQR,
-                (errorMessage) => {},
-              );
-              started = true;
-              currentCamera = "user";
-              document.getElementById("switchFrontBtn").classList.add("active");
-              document
-                .getElementById("switchBackBtn")
-                .classList.remove("active");
-              showToast("Scanner ready - Front Camera active (fallback)");
-            } catch (fallbackErr) {
-              console.error("Front camera error:", fallbackErr);
-              errorMsg = fallbackErr.message;
-              started = false;
+            if (status === "completed") {
+                inBtn.disabled = true;
+                outBtn.disabled = true;
+                inBtn.style.opacity = "0.5";
+                outBtn.style.opacity = "0.5";
+            } else if (status === "in_only") {
+                inBtn.disabled = true;
+                outBtn.disabled = false;
+                inBtn.style.opacity = "0.5";
+                outBtn.style.opacity = "1";
+            } else {
+                inBtn.disabled = false;
+                outBtn.disabled = true;
+                inBtn.style.opacity = "1";
+                outBtn.style.opacity = "0.5";
             }
-          }
 
-          if (started) {
-            isScanning = true;
-            cameraInitialized = true;
-          } else {
-            showCameraError(
-              `Camera initialization failed: ${errorMsg || "Unknown error"}`,
+            document.getElementById("attendanceModal").style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById("attendanceModal").style.display = "none";
+            pendingStudent = null;
+        }
+
+        function handleScannedQR(decodedText) {
+            try {
+                const data = JSON.parse(decodedText);
+                if (data.type === "attendance" && data.studentId) {
+                    const student = students.find((s) => s.id === data.studentId);
+                    if (student) {
+                        showModal(student);
+                    } else {
+                        showToast(`Student ID ${data.studentId} not found!`, true);
+                    }
+                } else {
+                    showToast("Invalid QR code", true);
+                }
+            } catch (e) {
+                const student = students.find((s) => s.id === decodedText);
+                if (student) {
+                    showModal(student);
+                } else if (decodedText.startsWith("STU-")) {
+                    showToast(`Student ID ${decodedText} not found!`, true);
+                } else {
+                    showToast("QR not recognized", true);
+                }
+            }
+        }
+
+        // ============ CAMERA FUNCTIONS ============
+
+        async function switchCamera(cameraType) {
+            if (!html5QrCode) {
+                showToast("Scanner not initialized", true);
+                return;
+            }
+            try {
+                if (isScanning) {
+                    await html5QrCode.stop();
+                    isScanning = false;
+                    cameraInitialized = false;
+                }
+                const readerElement = document.getElementById("reader");
+                readerElement.innerHTML = `<div style="color: white; text-align: center; padding: 20px;">
+                <i class="fas fa-camera" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                <div class="loading-spinner" style="margin: 10px auto;"></div>
+                <p>Switching camera...</p>
+            </div>`;
+
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 280, height: 280 },
+                    aspectRatio: 1.0,
+                };
+                await html5QrCode.start(
+                    {
+                        facingMode: cameraType === "environment" ? "environment" : "user",
+                    },
+                    config,
+                    handleScannedQR,
+                    (errorMessage) => { },
+                );
+                isScanning = true;
+                cameraInitialized = true;
+                currentCamera = cameraType;
+                const backBtn = document.getElementById("switchBackBtn");
+                const frontBtn = document.getElementById("switchFrontBtn");
+                if (cameraType === "environment") {
+                    backBtn.classList.add("active");
+                    frontBtn.classList.remove("active");
+                } else {
+                    frontBtn.classList.add("active");
+                    backBtn.classList.remove("active");
+                }
+                showToast(
+                    `Switched to ${cameraType === "environment" ? "Back" : "Front"} Camera`,
+                );
+            } catch (err) {
+                console.error("Camera switch error:", err);
+                showToast(`Camera error: ${err.message}`, true);
+                isScanning = false;
+                cameraInitialized = false;
+            }
+        }
+
+        function showCameraError(message) {
+            const reader = document.getElementById("reader");
+            reader.innerHTML = `<div class="camera-error">
+            <i class="fas fa-exclamation-triangle" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+            <p><strong>Camera Error</strong></p>
+            <p style="font-size: 0.9rem; margin: 10px 0;">${message}</p>
+            <button onclick="initScanner()"><i class="fas fa-sync-alt"></i> Retry Camera</button>
+        </div>`;
+        }
+
+        async function initScanner() {
+            try {
+                if (html5QrCode) {
+                    try {
+                        if (isScanning) await html5QrCode.stop();
+                    } catch (e) { }
+                    isScanning = false;
+                    cameraInitialized = false;
+                }
+                const readerElement = document.getElementById("reader");
+                if (!readerElement) return;
+                readerElement.innerHTML = `<div style="color: white; text-align: center; padding: 20px;">
+                <i class="fas fa-camera" style="font-size: 2rem; display: block; margin-bottom: 10px;"></i>
+                <div class="loading-spinner" style="margin: 10px auto;"></div>
+                <p>Starting camera...</p>
+                <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 5px;">Please grant camera permission when prompted.</p>
+            </div>`;
+
+                html5QrCode = new Html5Qrcode("reader");
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 280, height: 280 },
+                    aspectRatio: 1.0,
+                };
+                let started = false;
+                let errorMsg = "";
+
+                try {
+                    await html5QrCode.start(
+                        { facingMode: "environment" },
+                        config,
+                        handleScannedQR,
+                        (errorMessage) => { },
+                    );
+                    started = true;
+                    currentCamera = "environment";
+                    document.getElementById("switchBackBtn").classList.add("active");
+                    document
+                        .getElementById("switchFrontBtn")
+                        .classList.remove("active");
+                    showToast("Scanner ready - Back Camera active");
+                } catch (err) {
+                    errorMsg = err.message;
+                    console.error("Back camera error:", err);
+                    try {
+                        await html5QrCode.start(
+                            { facingMode: "user" },
+                            config,
+                            handleScannedQR,
+                            (errorMessage) => { },
+                        );
+                        started = true;
+                        currentCamera = "user";
+                        document.getElementById("switchFrontBtn").classList.add("active");
+                        document
+                            .getElementById("switchBackBtn")
+                            .classList.remove("active");
+                        showToast("Scanner ready - Front Camera active (fallback)");
+                    } catch (fallbackErr) {
+                        console.error("Front camera error:", fallbackErr);
+                        errorMsg = fallbackErr.message;
+                        started = false;
+                    }
+                }
+
+                if (started) {
+                    isScanning = true;
+                    cameraInitialized = true;
+                } else {
+                    showCameraError(
+                        `Camera initialization failed: ${errorMsg || "Unknown error"}`,
+                    );
+                    showToast("Camera access failed. Please check permissions.", true);
+                    isScanning = false;
+                    cameraInitialized = false;
+                }
+            } catch (err) {
+                console.error("Scanner initialization error:", err);
+                showCameraError(`Failed to initialize scanner: ${err.message}`);
+                showToast(`Scanner error: ${err.message}`, true);
+                isScanning = false;
+                cameraInitialized = false;
+            }
+        }
+
+        // ============ MANUAL ENTRY ============
+        let manualVisible = false;
+        function toggleManual() {
+            const panel = document.getElementById("manualPanel");
+            manualVisible = !manualVisible;
+            panel.style.display = manualVisible ? "block" : "none";
+            document.getElementById("toggleManualBtn").innerHTML = manualVisible
+                ? '<i class="fas fa-camera"></i> Hide Manual Entry'
+                : '<i class="fas fa-keyboard"></i> Show Manual Entry';
+        }
+
+        async function manualIn() {
+            const studentId = document
+                .getElementById("manualStudentId")
+                .value.trim();
+            if (!studentId) {
+                showToast("Enter Student ID", true);
+                return;
+            }
+            const student = students.find((s) => s.id === studentId);
+            if (!student) {
+                showToast(`Student ID ${studentId} not found!`, true);
+                return;
+            }
+            await processAttendance(student, "IN");
+            document.getElementById("manualStudentId").value = "";
+        }
+
+        async function manualOut() {
+            const studentId = document
+                .getElementById("manualStudentId")
+                .value.trim();
+            if (!studentId) {
+                showToast("Enter Student ID", true);
+                return;
+            }
+            const student = students.find((s) => s.id === studentId);
+            if (!student) {
+                showToast(`Student ID ${studentId} not found!`, true);
+                return;
+            }
+            await processAttendance(student, "OUT");
+            document.getElementById("manualStudentId").value = "";
+        }
+
+        function refresh() {
+            renderAttendanceList();
+            updateStats();
+            showToast("Refreshed");
+        }
+
+        function escapeHtml(str) {
+            if (!str) return "";
+            return String(str).replace(
+                /[&<>]/g,
+                (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m],
             );
-            showToast("Camera access failed. Please check permissions.", true);
-            isScanning = false;
-            cameraInitialized = false;
-          }
-        } catch (err) {
-          console.error("Scanner initialization error:", err);
-          showCameraError(`Failed to initialize scanner: ${err.message}`);
-          showToast(`Scanner error: ${err.message}`, true);
-          isScanning = false;
-          cameraInitialized = false;
         }
-      }
 
-      // ============ MANUAL ENTRY FUNCTIONS ============
-
-      let manualVisible = false;
-
-      function toggleManual() {
-        const panel = document.getElementById("manualPanel");
-        manualVisible = !manualVisible;
-        panel.style.display = manualVisible ? "block" : "none";
-        document.getElementById("toggleManualBtn").innerHTML = manualVisible
-          ? '<i class="fas fa-camera"></i> Hide Manual Entry'
-          : '<i class="fas fa-keyboard"></i> Show Manual Entry';
-      }
-
-      async function manualIn() {
-        const studentId = document
-          .getElementById("manualStudentId")
-          .value.trim();
-        if (!studentId) {
-          showToast("Enter Student ID", true);
-          return;
+        function checkConfig() {
+            if (
+                GOOGLE_SCRIPT_URL ===
+                "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+            ) {
+                document.getElementById("configWarning").style.display = "block";
+                showToast("⚠️ Please configure your Google Script URL", true);
+                return false;
+            }
+            return true;
         }
-        const student = students.find((s) => s.id === studentId);
-        if (!student) {
-          showToast(`Student ID ${studentId} not found!`, true);
-          return;
-        }
-        await processAttendance(student, "IN");
-        document.getElementById("manualStudentId").value = "";
-      }
 
-      async function manualOut() {
-        const studentId = document
-          .getElementById("manualStudentId")
-          .value.trim();
-        if (!studentId) {
-          showToast("Enter Student ID", true);
-          return;
-        }
-        const student = students.find((s) => s.id === studentId);
-        if (!student) {
-          showToast(`Student ID ${studentId} not found!`, true);
-          return;
-        }
-        await processAttendance(student, "OUT");
-        document.getElementById("manualStudentId").value = "";
-      }
-
-      function refresh() {
-        renderAttendanceList();
-        updateStats();
-        showToast("Refreshed");
-      }
-
-      function escapeHtml(str) {
-        if (!str) return "";
-        return String(str).replace(
-          /[&<>]/g,
-          (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m],
-        );
-      }
-
-      function checkConfig() {
-        if (
-          GOOGLE_SCRIPT_URL ===
-          "https://script.google.com/macros/s/AKfycbyZwG7ADaziRvQ7Qiu1f_1Ho2T_uwi51wWdLxwdB6lWklBxKzrk8APyUN4VuQ1_FUKP/exec"
-        ) {
-          document.getElementById("configWarning").style.display = "block";
-          showToast("⚠️ Please configure your Google Script URL", true);
-          return false;
-        }
-        return true;
-      }
-
-      // ============ EVENT LISTENERS ============
-
-      document.getElementById("switchBackBtn").addEventListener("click", () => {
-        if (currentCamera !== "environment") {
-          switchCamera("environment");
-        }
-      });
-
-      document
-        .getElementById("switchFrontBtn")
-        .addEventListener("click", () => {
-          if (currentCamera !== "user") {
-            switchCamera("user");
-          }
+        // ============ EVENT LISTENERS ============
+        document.getElementById("switchBackBtn").addEventListener("click", () => {
+            if (currentCamera !== "environment") switchCamera("environment");
         });
-
-      document
-        .getElementById("restartCameraBtn")
-        .addEventListener("click", () => {
-          showToast("Restarting camera...");
-          initScanner();
+        document
+            .getElementById("switchFrontBtn")
+            .addEventListener("click", () => {
+                if (currentCamera !== "user") switchCamera("user");
+            });
+        document
+            .getElementById("restartCameraBtn")
+            .addEventListener("click", () => {
+                showToast("Restarting camera...");
+                initScanner();
+            });
+        document
+            .getElementById("modalInBtn")
+            .addEventListener("click", async () => {
+                if (pendingStudent && !isProcessing) {
+                    await processAttendance(pendingStudent, "IN");
+                    closeModal();
+                }
+            });
+        document
+            .getElementById("modalOutBtn")
+            .addEventListener("click", async () => {
+                if (pendingStudent && !isProcessing) {
+                    await processAttendance(pendingStudent, "OUT");
+                    closeModal();
+                }
+            });
+        document
+            .getElementById("modalCancelBtn")
+            .addEventListener("click", closeModal);
+        window.addEventListener("click", (e) => {
+            if (e.target === document.getElementById("attendanceModal"))
+                closeModal();
         });
+        document.getElementById("refreshBtn").addEventListener("click", refresh);
+        document
+            .getElementById("manualInBtn")
+            .addEventListener("click", manualIn);
+        document
+            .getElementById("manualOutBtn")
+            .addEventListener("click", manualOut);
+        document
+            .getElementById("toggleManualBtn")
+            .addEventListener("click", toggleManual);
+        document
+            .getElementById("manualSubmitIn")
+            .addEventListener("click", manualIn);
+        document
+            .getElementById("manualSubmitOut")
+            .addEventListener("click", manualOut);
 
-      document
-        .getElementById("modalInBtn")
-        .addEventListener("click", async () => {
-          if (pendingStudent && !isProcessing) {
-            await processAttendance(pendingStudent, "IN");
-            closeModal();
-          }
-        });
-
-      document
-        .getElementById("modalOutBtn")
-        .addEventListener("click", async () => {
-          if (pendingStudent && !isProcessing) {
-            await processAttendance(pendingStudent, "OUT");
-            closeModal();
-          }
-        });
-
-      document
-        .getElementById("modalCancelBtn")
-        .addEventListener("click", closeModal);
-      window.addEventListener("click", (e) => {
-        if (e.target === document.getElementById("attendanceModal"))
-          closeModal();
-      });
-
-      document.getElementById("refreshBtn").addEventListener("click", refresh);
-      document
-        .getElementById("manualInBtn")
-        .addEventListener("click", manualIn);
-      document
-        .getElementById("manualOutBtn")
-        .addEventListener("click", manualOut);
-      document
-        .getElementById("toggleManualBtn")
-        .addEventListener("click", toggleManual);
-      document
-        .getElementById("manualSubmitIn")
-        .addEventListener("click", manualIn);
-      document
-        .getElementById("manualSubmitOut")
-        .addEventListener("click", manualOut);
-
-      // ============ INITIALIZE ============
-
-      if (checkConfig()) {
-        loadStudentsFromSheet().then(() => {
-          loadAttendanceLocal();
-          setTimeout(() => {
-            initScanner();
-          }, 500);
-        });
-      }
-
-      window.addEventListener("beforeunload", async () => {
-        if (html5QrCode && isScanning) {
-          try {
-            await html5QrCode.stop();
-          } catch (e) {}
+        // ============ INITIALIZE ============
+        if (checkConfig()) {
+            loadStudentsFromSheet().then(() => {
+                loadAttendanceLocal();
+                setTimeout(() => {
+                    initScanner();
+                }, 500);
+            });
         }
-      });
+
+        window.addEventListener("beforeunload", async () => {
+            if (html5QrCode && isScanning) {
+                try {
+                    await html5QrCode.stop();
+                } catch (e) { }
+            }
+        });
     </script>
-  </body>
+</body>
+
 </html>
