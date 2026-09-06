@@ -73,13 +73,14 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading-box p { color: #4a5568; font-weight: 500; }
         .qr-preview-info { font-size: 0.75rem; color: #718096; margin: 8px 0; }
+        .qr-data-display { background: #f0f2f5; padding: 6px 12px; border-radius: 8px; font-size: 0.7rem; color: #4a5568; font-family: monospace; word-break: break-all; margin-top: 4px; }
         @media (max-width: 500px) { .header { padding: 20px; } .header .logo { font-size: 1.5rem; } .card { padding: 20px 16px; } .form-row { flex-direction: column; gap: 0; } .qr-actions { flex-direction: column; } }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <div class="logo">SIS Registration</div>
+        <div class="logo"><i class="fas fa-tree"></i> SIS Registration</div>
         <div class="subtitle">Sapporo International School · Student Management</div>
     </div>
     
@@ -133,6 +134,7 @@
                 <div style="color:#a0aec0; padding:20px;">Select a student to generate QR</div>
             </div>
             <div class="qr-preview-info" id="qrStudentInfo"></div>
+            <div class="qr-data-display" id="qrDataDisplay"></div>
             <div class="qr-actions">
                 <button id="generateQrBtn" class="btn btn-gold btn-sm"><i class="fas fa-sync-alt"></i> Generate QR</button>
                 <button id="downloadQrBtn" class="btn btn-primary btn-sm" style="background:#3498db;"><i class="fas fa-download"></i> Download QR</button>
@@ -181,6 +183,7 @@
     const studentCount = $('studentCount');
     const qrcodeCanvas = $('qrcodeCanvas');
     const qrStudentInfo = $('qrStudentInfo');
+    const qrDataDisplay = $('qrDataDisplay');
     const generateQrBtn = $('generateQrBtn');
     const downloadQrBtn = $('downloadQrBtn');
     const form = $('registrationForm');
@@ -294,6 +297,7 @@
         renderStudentList();
         qrcodeCanvas.innerHTML = '<div style="color:#a0aec0; padding:20px;">Select a student to generate QR</div>';
         qrStudentInfo.textContent = '';
+        qrDataDisplay.textContent = '';
         showToast('Form cleared', 'info');
     }
     
@@ -364,6 +368,7 @@
                 if (selectedStudentId === studentId) { selectedStudentId = null; clearForm(); }
                 qrcodeCanvas.innerHTML = '<div style="color:#a0aec0; padding:20px;">Select a student to generate QR</div>';
                 qrStudentInfo.textContent = '';
+                qrDataDisplay.textContent = '';
             } else {
                 showToast(`❌ ${result.message}`, 'error');
             }
@@ -373,18 +378,19 @@
     }
     
     // ============================================
-    // QR CODE GENERATION - FIXED FORMAT
+    // QR CODE GENERATION - FIXED: Just the Student ID
     // ============================================
     function generateQR(studentId) {
         const student = students.find(s => s.id === studentId);
         if (!student) {
             qrcodeCanvas.innerHTML = '<div style="color:#a0aec0; padding:20px;">Select a student to generate QR</div>';
             qrStudentInfo.textContent = '';
+            qrDataDisplay.textContent = '';
             return;
         }
         
-        // CORRECT FORMAT: The QR code should contain the student ID as the main identifier
-        // We store it as a simple string that the scanner can read
+        // IMPORTANT: QR contains ONLY the student ID as plain text
+        // This is the simplest and most reliable format
         const payload = student.id;
         
         qrcodeCanvas.innerHTML = '';
@@ -398,6 +404,7 @@
         });
         
         qrStudentInfo.textContent = `📋 ${student.name} (${student.id}) · ${student.grade}`;
+        qrDataDisplay.textContent = `QR Data: ${payload}`;
         showToast(`QR generated for ${student.name}`, 'success');
     }
     
